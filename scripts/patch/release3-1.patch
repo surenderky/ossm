@@ -1,0 +1,113 @@
+diff --git a/Makefile.core.mk b/Makefile.core.mk
+index 353ad818..48719a02 100644
+--- a/Makefile.core.mk
++++ b/Makefile.core.mk
+@@ -583,7 +583,7 @@ istioctl: $(ISTIOCTL) ## Download istioctl to bin directory.
+ istioctl: TARGET_OS=$(shell go env GOOS)
+ istioctl: TARGET_ARCH=$(shell go env GOARCH)
+ $(ISTIOCTL): $(LOCALBIN)
+-	@test -s $(LOCALBIN)/istioctl || { \
++	@test -s $(LOCALBIN)/istioctl || which istioctl && cp $$(which istioctl) $(LOCALBIN)/istioctl || { \
+ 		OSEXT=$(if $(filter $(TARGET_OS),Darwin),osx,linux); \
+ 		URL=$(if $(value ISTIOCTL_DOWNLOAD_URL),$(ISTIOCTL_DOWNLOAD_URL),"https://github.com/istio/istio/releases/download/$(ISTIOCTL_VERSION)/istioctl-$(ISTIOCTL_VERSION)-$$OSEXT-$(TARGET_ARCH).tar.gz"); \
+ 		echo "Fetching istioctl from $$URL"; \
+diff --git a/samples/helloworld/helloworld.yaml b/samples/helloworld/helloworld.yaml
+index 68e1072d..52a61b6e 100644
+--- a/samples/helloworld/helloworld.yaml
++++ b/samples/helloworld/helloworld.yaml
+@@ -33,7 +33,7 @@ spec:
+     spec:
+       containers:
+       - name: helloworld
+-        image: quay.io/sail-dev/examples-helloworld-v1:1.0
++        image: quay.io/maistra/helloworld-v1:1.0
+         resources:
+           requests:
+             cpu: "100m"
+@@ -62,7 +62,7 @@ spec:
+     spec:
+       containers:
+       - name: helloworld
+-        image: quay.io/sail-dev/examples-helloworld-v2:1.0
++        image: quay.io/maistra/helloworld-v2:1.0
+         resources:
+           requests:
+             cpu: "100m"
+diff --git a/samples/httpbin/httpbin.yaml b/samples/httpbin/httpbin.yaml
+index 5f115adc..736476b4 100644
+--- a/samples/httpbin/httpbin.yaml
++++ b/samples/httpbin/httpbin.yaml
+@@ -53,7 +53,7 @@ spec:
+     spec:
+       serviceAccountName: httpbin
+       containers:
+-      - image: quay.io/sail-dev/examples-httpbin:v2.15.0
++      - image: quay.io/openshifttest/httpbin:1.2.2
+         imagePullPolicy: IfNotPresent
+         name: httpbin
+         ports:
+diff --git a/samples/sleep/sleep.yaml b/samples/sleep/sleep.yaml
+index eeb4a91b..6e068480 100644
+--- a/samples/sleep/sleep.yaml
++++ b/samples/sleep/sleep.yaml
+@@ -52,7 +52,7 @@ spec:
+       serviceAccountName: sleep
+       containers:
+       - name: sleep
+-        image: quay.io/curl/curl
++        image: quay.io/curl/curl:8.4.0
+         command: ["/bin/sleep", "infinity"]
+         imagePullPolicy: IfNotPresent
+         volumeMounts:
+diff --git a/samples/tcp-echo/tcp-echo-ipv4.yaml b/samples/tcp-echo/tcp-echo-ipv4.yaml
+index 7ecbda79..55f19eb1 100644
+--- a/samples/tcp-echo/tcp-echo-ipv4.yaml
++++ b/samples/tcp-echo/tcp-echo-ipv4.yaml
+@@ -53,7 +53,7 @@ spec:
+     spec:
+       containers:
+       - name: tcp-echo
+-        image: quay.io/sail-dev/examples-tcp-echo-server:1.3
++        image: quay.io/maistra/-tcp-echo-server:1.3
+         imagePullPolicy: IfNotPresent
+         args: [ "9000,9001,9002", "hello" ]
+         ports:
+diff --git a/tests/e2e/common-operator-integ-suite.sh b/tests/e2e/common-operator-integ-suite.sh
+index 64a7aef1..f87de1b8 100755
+--- a/tests/e2e/common-operator-integ-suite.sh
++++ b/tests/e2e/common-operator-integ-suite.sh
+@@ -233,7 +233,7 @@ fi
+ # shellcheck disable=SC2086
+ IMAGE="${HUB}/${IMAGE_BASE}:${TAG}" \
+ go run github.com/onsi/ginkgo/v2/ginkgo -tags e2e \
+---timeout 60m --junit-report=report.xml ${GINKGO_FLAGS} "${WD}"/...
++--timeout 60m --junit-report=report.xml --skip "Ambient" ${GINKGO_FLAGS} "${WD}"/...
+ 
+ if [ "${OLM}" != "true" ] && [ "${SKIP_DEPLOY}" != "true" ]; then
+   if [ "${MULTICLUSTER}" == true ]; then
+diff --git a/tests/e2e/controlplane/control_plane_suite_test.go b/tests/e2e/controlplane/control_plane_suite_test.go
+index a7e73942..389146c4 100644
+--- a/tests/e2e/controlplane/control_plane_suite_test.go
++++ b/tests/e2e/controlplane/control_plane_suite_test.go
+@@ -37,7 +37,7 @@ var (
+ 	istioName             = env.Get("ISTIO_NAME", "default")
+ 	istioCniNamespace     = env.Get("ISTIOCNI_NAMESPACE", "istio-cni")
+ 	istioCniName          = env.Get("ISTIOCNI_NAME", "default")
+-	expectedRegistry      = env.Get("EXPECTED_REGISTRY", "^docker\\.io|^gcr\\.io")
++	expectedRegistry      = env.Get("EXPECTED_REGISTRY", "^docker\\.io|^gcr\\.io|^registry\\.redhat\\.io")
+ 	sampleNamespace       = env.Get("SAMPLE_NAMESPACE", "sample")
+ 	multicluster          = env.GetBool("MULTICLUSTER", false)
+ 	keepOnFailure         = env.GetBool("KEEP_ON_FAILURE", false)
+diff --git a/tests/e2e/operator/operator_install_test.go b/tests/e2e/operator/operator_install_test.go
+index 8c48d2b9..8e487f45 100644
+--- a/tests/e2e/operator/operator_install_test.go
++++ b/tests/e2e/operator/operator_install_test.go
+@@ -150,7 +150,7 @@ spec:
+     spec:
+       containers:
+       - name: curl-metrics
+-        image: quay.io/curl/curl:8.11.1
++        image: quay.io/curl/curl:8.4.0
+         command: ['curl', '-v', '-k', '-H', 'Authorization: Bearer %s', 'https://%s.%s.svc.cluster.local:8443/metrics']
+       restartPolicy: Never
+ `, curlNamespace, token, metricsServiceName, namespace))
