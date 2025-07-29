@@ -1,9 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-SOURCE_ROOT="/root"
-
-cd ${SOURCE_ROOT}
+SOURCE_ROOT="$(pwd)"
 
 rm -rf istio/
 

@@ -1,7 +1,8 @@
 #!/bin/bash
 
 set -euo pipefail
-SOURCE_ROOT="/root"
+SOURCE_ROOT="$(pwd)"
+
 REPO_URL="https://github.com/openshift-service-mesh/sail-operator.git"
 REPO_BRANCH="release-3.1"
 PATCH_PATH="${SOURCE_ROOT}/scripts/patch/release3-1.patch"
@@ -9,7 +10,7 @@ REPO_NAME="sail-operator"
 
 # Generate timestamped log file name
 TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-LOGFILE="sail-e2e-log-$TIMESTAMP.log"
+LOGFILE="$SOURCE_ROOT/sail-e2e-log-$TIMESTAMP.log"
 
 if [ -d "$REPO_NAME" ]; then
     echo "Repository '$REPO_NAME' already exists. Skipping clone."

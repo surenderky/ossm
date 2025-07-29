@@ -13,7 +13,7 @@ fi
 echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
-SOURCE_ROOT="/root"
+SOURCE_ROOT="$(pwd)"
 
 export PATH=$PATH:$(go env GOPATH)/bin
 export TAG=ibm-z
@@ -64,7 +64,7 @@ if [[ -n "$TEST_PATH" ]]; then
         TESTSUITEFILE=$(echo "$TEST_PATH" | sed 's|/|-|g')
 	TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
 	LOGFILE="$TESTSUITEFILE-$TIMESTAMP.log"
-        echo " You selected suite: $TEST_PATH & Log will be saved at ${SOURCE_ROOT}/istio/tests/integration/$LOGFILE"
+        echo " You selected suite: $TEST_PATH & Log will be saved at ${SOURCE_ROOT}/$LOGFILE"
 	
        #export STD_ARGS="--format short-verbose --junitfile $TESTSUITEFILE-$TIMESTAMP.xml -- -tags=integ -timeout 180m"
 	
