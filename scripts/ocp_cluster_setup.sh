@@ -84,7 +84,7 @@ sleep 10
 oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq
 
 # Step 8: Configure Haproxy for http & https
-If [ $OSSM_VERSION = 2.0 ]; then
+if [ $OSSM_VERSION = 2.0 ]; then
 echo " Updating Haproxy..."
 CONFIG_HAPROXY_HTTP="/etc/haproxy/conf.d/00-openshift-http.cfg"
 CONFIG_HAPROXY_HTTPS="/etc/haproxy/conf.d/00-openshift-https.cfg"
