@@ -38,7 +38,7 @@ echo "  ✅ Cluster name     : $CLUSTER_NAME"
 echo "=========================================="
 read -p "Do you want to continue with these settings? (yes/no): " CONFIRM
 if [[ "$CONFIRM" = "yes" ]]; then
-       setsid ./scripts/ocp_cluster_setup.sh $OCP_VERSION $OSSM_VERSION $CLUSTER_NAME > $SOURCE_ROOT/$CLUSTER_NAME.log 2>&1 & tail -f $SOURCE_ROOT/$CLUSTER_NAME.log
+       setsid ./ossm/scripts/ocp_cluster_setup.sh $OCP_VERSION $OSSM_VERSION $CLUSTER_NAME > $SOURCE_ROOT/$CLUSTER_NAME.log 2>&1 & tail -f $SOURCE_ROOT/$CLUSTER_NAME.log
 else
        echo "❌ Aborted by user."
        exit 1

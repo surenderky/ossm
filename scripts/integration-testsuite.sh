@@ -14,16 +14,68 @@ echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
 SOURCE_ROOT="$(pwd)"
-
+TEMPLATE_PATH="/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
 export PATH=$PATH:$(go env GOPATH)/bin
 export TAG=ibm-z
 export HUB=quay.io/maistra
 
 echo "Configuring istio ingressgateway & egressgateway"
-oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-ingressgateway.yaml
-oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-egressgateway.yaml
+oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ingressgateway.yaml
+oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-egressgateway.yaml
 
 cd ${SOURCE_ROOT}/istio
+
+extract_extra_test_args() {
+  local block_name="$1"
+  local groovy_file="$SOURCE_ROOT/istio/jenkins-csb-declaration/vars/istioIntegrationTestData.groovy"
+
+  awk -v block_name="$block_name" '
+    BEGIN {
+      in_block = 0
+      in_extra = 0
+      extra = ""
+      pattern = "^[[:space:]]*'\''" block_name "'\''[[:space:]]*:[[:space:]]*\\{[[:space:]]*\\["
+    }
+
+    {
+      # Start of block
+      if ($0 ~ pattern) {
+        in_block = 1
+        next
+      }
+
+      # End of block
+      if (in_block && $0 ~ /\][[:space:]]*\},?/) {
+        in_block = 0
+      }
+
+      # extraTestArgs line
+      if (in_block && match($0, /'\''extraTestArgs'\''[[:space:]]*:[[:space:]]*'\''(.*)/, m)) {
+        in_extra = 1
+        extra = m[1]
+        if ($0 ~ /'\''[[:space:]]*$/) {
+          in_extra = 0
+          sub(/'\''[[:space:]]*$/, "", extra)
+          print extra
+          exit
+        }
+        next
+      }
+
+      # multi-line continuation
+      if (in_extra) {
+        extra = extra "\n" $0
+        if ($0 ~ /'\''[[:space:]]*$/) {
+          in_extra = 0
+          sub(/'\''[[:space:]]*$/, "", extra)
+          print extra
+          exit
+        }
+      }
+    }
+  ' "$groovy_file"
+}
+
 
 SUITES=(
   "telemetry/api"
@@ -66,121 +118,175 @@ if [[ -n "$TEST_PATH" ]]; then
 	LOGFILE="$TESTSUITEFILE-$TIMESTAMP.log"
         echo " You selected suite: $TEST_PATH & Log will be saved at ${SOURCE_ROOT}/$LOGFILE"
 	
-       #export STD_ARGS="--format short-verbose --junitfile $TESTSUITEFILE-$TIMESTAMP.xml -- -tags=integ -timeout 180m"
-	
-       # export STD_ARGS="-f testname --junitfile-project-name istio --junitfile /home/jenkins/workspace/sail/istio-integration-tests-suites/${TEST_PATH}/junit-$TESTSUITEFILE-$TIMESTAMP.xml --rerun-fails --packages=./tests/integration/${TEST_PATH} --rerun-fails-max-failures=30 --debug -- -tags=integ -timeout 180m"	
         export STD_ARGS="-f testname --junitfile-project-name istio --junitfile /home/jenkins/workspace/sail/istio-integration-tests-suites/${TEST_PATH}/junit-$TESTSUITEFILE-$TIMESTAMP.xml --packages=./tests/integration/${TEST_PATH} -- -tags=integ -timeout 180m"
 	export TEST_ARGS="-args -istio.test.skipWorkloads=tproxy,vm -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.work_dir=/home/jenkins/workspace/sail/istio-integration-tests-suites/${TEST_PATH}/artifacts"
 
+
 	if [[ " ${TEST_PATH} " = " telemetry/api " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-telemetry-api.yaml  
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-api.yaml  
+
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+	
+		echo "$GET_EXTRA_TEST_ARGS"
 		
-		export EXTRA_TEST_ARGS="-test.skip TestCustomizeMetrics|TestDashboard/pilot-dashboard.json|TestStatsGatewayServerTCPFilter|TestImagePullPolicy/OCI_initial_creation_with_0.0.1|TestImagePullPolicy/OCI_upstream_is_upgraded_to_0.0.2,_but_0.0.1_is_already_present_and_policy_is_IfNotPresent|TestImagePullPolicy/OCI_upstream_is_upgraded_to_0.0.2,_but_0.0.1_is_already_present_and_policy_is_default|TestImagePullPolicy/OCI_upstream_is_upgraded_to_0.0.2._0.0.1_is_already_present_but_policy_is_Always,_so_pull_0.0.2|TestGatewaySelection/OCI_initial_creation_with_latest_for_a_gateway|TestGatewaySelection/OCI_initial_creation_with_latest_for_a_gateway|TestImagePullPolicyWithHTTP"
-  
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " telemetry/policy " ]]; then
  
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-telemetry-policy.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-policy.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+		
+		echo "$GET_EXTRA_TEST_ARGS"		
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " telemetry/tracing/zipkin " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-telemetry-tracing-zipkin.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-tracing-zipkin.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " telemetry/tracing/otelcollector " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-telemetry-tracing-otelcollector.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-tracing-otelcollector.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security.yaml
 
-		export EXTRA_TEST_ARGS="-test.skip TestAuthz_CustomServer|TestMultiMtlsGateway|TestMultiTlsGateway|TestNormalization"
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+		
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security/policy_attachment_only " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security-policy-attachment-only.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-policy-attachment-only.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security/remote_jwks " ]]; then
 	
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security-remote-jwks.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-remote-jwks.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security/https_jwt " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security-https-jwt.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-https-jwt.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security/filebased_tls_origination " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security-filebased-tls-origination.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-filebased-tls-origination.yaml
 
-		export EXTRA_TEST_ARGS="-test.skip TestEgressGatewayTls/Mutual_TLS_origination_from_egress_gateway_to_https_endpoint|TestEgressGatewayTls/SIMPLE_TLS_origination_from_egress_gateway_to_https_endpoint"
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security/ecc_signature_algorithm " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security-ecc-signature-algorithm.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-ecc-signature-algorithm.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security/ca_custom_root " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security-ca-custom-root.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-ca-custom-root.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " security/cacert_rotation " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-security-cacert-rotation.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-cacert-rotation.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+		export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " pilot " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-pilot.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-pilot.yaml
+		
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-		export EXTRA_TEST_ARGS="-test.skip TestCustomGateway/helm.*|TestCNIRaceRepair|TestValidation|TestWebhook|TestTraffic/gateway/cipher_suite|TestGatewayConformance"
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	elif [[ " ${TEST_PATH} " = " pilot/analysis " ]]; then
 
-		oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio/istio-pilot-analysis.yaml
+		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-pilot-analysis.yaml
 
-		export EXTRA_TEST_ARGS=""
+		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
