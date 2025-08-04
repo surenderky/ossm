@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
-SOURCE_ROOT="$(pwd)"
+SOURCE_ROOT="/root"
 
 # Check if the user is logged in
 if ! oc whoami &>/dev/null; then

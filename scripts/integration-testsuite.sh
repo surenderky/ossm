@@ -13,7 +13,8 @@ fi
 echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
-SOURCE_ROOT="$(pwd)"
+SOURCE_ROOT="/root"
+
 TEMPLATE_PATH="/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
 export PATH=$PATH:$(go env GOPATH)/bin
 export TAG=ibm-z

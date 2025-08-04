@@ -4,15 +4,13 @@ set -euo pipefail
 
 # OCP version
 OCP_VERSION="$1"
-# OSSM version
-OSSM_VERSION="$2"
 # Cluster name
-CLUSTER_NAME="$3"
+CLUSTER_NAME="$2"
 
 
 HOSTNAME=$(hostname -s)
-SOURCE_ROOT="$(pwd)"
-SCRIPT_DIR="/root/OCP-Setup-Automation"
+SOURCE_ROOT="/root"
+SCRIPT_DIR="${SOURCE_ROOT}/OCP-Setup-Automation"
 CONFIG_FILE="$HOSTNAME.yaml"
 
 cd "$SCRIPT_DIR"
@@ -81,26 +79,8 @@ fi
 echo " Updating pull secret..."
 oc set data secret/pull-secret -n openshift-config --from-file=/root/.dockerconfigjson
 sleep 10
-oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq
+#oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq
 
-# Step 8: Configure Haproxy for http & https
-if [ $OSSM_VERSION = 2.0 ]; then
-echo " Updating Haproxy..."
-CONFIG_HAPROXY_HTTP="/etc/haproxy/conf.d/00-openshift-http.cfg"
-CONFIG_HAPROXY_HTTPS="/etc/haproxy/conf.d/00-openshift-https.cfg"
-
-	# Append the backend line to the bottom of the file
-	echo "    use_backend ${CLUSTER_NAME}-http if example" >> "$CONFIG_HAPROXY_HTTP"
-	echo "    use_backend ${CLUSTER_NAME}-https if example" >> "$CONFIG_HAPROXY_HTTPS"
-
-	echo "----- Updated $CONFIG_HAPROXY_HTTP -----"
-	cat "$CONFIG_HAPROXY_HTTP"
-	
-	echo "----- Updated $CONFIG_HAPROXY_HTTPS -----"
-	cat "$CONFIG_HAPROXY_HTTPS"
-fi
-
-
-# Step 9: Final Success Message
+# Step 8: Final Success Message
 echo "✅ Succesfuly created & configured OCP $OCP_VERSION inside '$CLUSTER_NAME'."
 
