@@ -16,7 +16,7 @@ echo " Current cluster: $(oc whoami --show-server)"
 
 REPO_URL="https://github.com/openshift-service-mesh/sail-operator.git"
 REPO_BRANCH="release-3.1"
-PATCH_PATH="${SOURCE_ROOT}/scripts/patch/release3-1.patch"
+PATCH_PATH="${SOURCE_ROOT}/ossm/scripts/patch/release3-1.patch"
 REPO_NAME="sail-operator"
 
 # Generate timestamped log file name
