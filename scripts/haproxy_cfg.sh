@@ -10,7 +10,7 @@ while true; do
   fi
 done
 
-echo " Updating Haproxy..."
+echo " Updating HAproxy..."
 CONFIG_HAPROXY_HTTP="/etc/haproxy/conf.d/00-openshift-http.cfg"
 CONFIG_HAPROXY_HTTPS="/etc/haproxy/conf.d/00-openshift-https.cfg"
 
@@ -21,4 +21,11 @@ CONFIG_HAPROXY_HTTPS="/etc/haproxy/conf.d/00-openshift-https.cfg"
         cat "$CONFIG_HAPROXY_HTTP"
 
         cat "$CONFIG_HAPROXY_HTTPS"
-fi
+
+echo " Restarting HAproxy..."
+    	systemctl restart haproxy
+    	if systemctl is-active --quiet haproxy; then
+        	echo "HAProxy has been successfully restarted."
+    	else
+        	echo "Failed to restart HAProxy."
+    	fi
