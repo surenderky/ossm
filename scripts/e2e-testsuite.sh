@@ -14,8 +14,6 @@ fi
 echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
-REPO_URL="https://github.com/openshift-service-mesh/sail-operator.git"
-
 REPO_NAME="sail-operator"
 
 # Generate timestamped log file name
