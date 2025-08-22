@@ -51,10 +51,7 @@ for NAMESPACE in "${NAMESPACES[@]}"; do
   if oc get namespace "$NAMESPACE" &>/dev/null; then
     # If it exists, delete the namespace
     echo "Namespace $NAMESPACE exists."
-  else
-    # If it doesn't exist, create the namespace
-    echo "Namespace $NAMESPACE does not exist. Kindly create"
-    exit 1
+    oc delete project "$NAMESPACE"
   fi
 done
 
