@@ -15,8 +15,7 @@ echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
 REPO_URL="https://github.com/openshift-service-mesh/sail-operator.git"
-REPO_BRANCH="release-3.1"
-PATCH_PATH="${SOURCE_ROOT}/ossm/scripts/patch/release3-1.patch"
+
 REPO_NAME="sail-operator"
 
 # Generate timestamped log file name
@@ -28,6 +27,9 @@ if [ -d "$REPO_NAME" ]; then
     cd "$REPO_NAME"
 else
     echo "Cloning repository..."
+    read -rp "Enter REPO_BRANCH(Ex:release-3.x): " REPO_BRANCH
+    REPO_URL="https://github.com/openshift-service-mesh/sail-operator.git"
+    PATCH_PATH="${SOURCE_ROOT}/ossm/scripts/patch/$REPO_BRANCH.patch"
     git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL"
     cd "$REPO_NAME"
     echo "Applying patch..."
@@ -42,19 +44,6 @@ export NAMESPACE="openshift-operators"
 export DEPLOYMENT_NAME="servicemesh-operator3"
 export BUILD_WITH_CONTAINER=0
 
-# Define namespaces
-NAMESPACES=("istio-cni" "istio-system")
-
-# Loop through each namespace
-for NAMESPACE in "${NAMESPACES[@]}"; do
-  # Check if the namespace exists
-  if oc get namespace "$NAMESPACE" &>/dev/null; then
-    # If it exists, delete the namespace
-    echo "Namespace $NAMESPACE exists."
-    oc delete project "$NAMESPACE"
-  fi
-done
-
 # Run the tests and log output
 echo "Running E2E tests. Logging to $LOGFILE..."
 if make test.e2e.ocp 2>&1 | tee "$LOGFILE"; then
@@ -63,4 +52,3 @@ else
     echo " E2E tests failed. Check log at $LOGFILE"
     exit 1
 fi
-
