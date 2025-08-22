@@ -39,36 +39,37 @@ extract_extra_test_args() {
     }
 
     {
-      # Start of block
+      # Block start
       if ($0 ~ pattern) {
         in_block = 1
         next
       }
 
-      # End of block
+      # Block end
       if (in_block && $0 ~ /\][[:space:]]*\},?/) {
         in_block = 0
       }
 
-      # extraTestArgs line
+      # Match start of extraTestArgs
       if (in_block && match($0, /'\''extraTestArgs'\''[[:space:]]*:[[:space:]]*'\''(.*)/, m)) {
         in_extra = 1
         extra = m[1]
-        if ($0 ~ /'\''[[:space:]]*$/) {
+        # Check for ending quote OR quote + comma
+        if ($0 ~ /'\''[[:space:]]*,?[[:space:]]*$/) {
           in_extra = 0
-          sub(/'\''[[:space:]]*$/, "", extra)
+          sub(/'\''[[:space:]]*,?[[:space:]]*$/, "", extra)
           print extra
           exit
         }
         next
       }
 
-      # multi-line continuation
+      # Multiline continuation
       if (in_extra) {
         extra = extra "\n" $0
-        if ($0 ~ /'\''[[:space:]]*$/) {
+        if ($0 ~ /'\''[[:space:]]*,?[[:space:]]*$/) {
           in_extra = 0
-          sub(/'\''[[:space:]]*$/, "", extra)
+          sub(/'\''[[:space:]]*,?[[:space:]]*$/, "", extra)
           print extra
           exit
         }
