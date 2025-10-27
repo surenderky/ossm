@@ -39,36 +39,37 @@ extract_extra_test_args() {
     }
 
     {
-      # Start of block
+      # Block start
       if ($0 ~ pattern) {
         in_block = 1
         next
       }
 
-      # End of block
+      # Block end
       if (in_block && $0 ~ /\][[:space:]]*\},?/) {
         in_block = 0
       }
 
-      # extraTestArgs line
+      # Match start of extraTestArgs
       if (in_block && match($0, /'\''extraTestArgs'\''[[:space:]]*:[[:space:]]*'\''(.*)/, m)) {
         in_extra = 1
         extra = m[1]
-        if ($0 ~ /'\''[[:space:]]*$/) {
+        # Check for ending quote OR quote + comma
+        if ($0 ~ /'\''[[:space:]]*,?[[:space:]]*$/) {
           in_extra = 0
-          sub(/'\''[[:space:]]*$/, "", extra)
+          sub(/'\''[[:space:]]*,?[[:space:]]*$/, "", extra)
           print extra
           exit
         }
         next
       }
 
-      # multi-line continuation
+      # Multiline continuation
       if (in_extra) {
         extra = extra "\n" $0
-        if ($0 ~ /'\''[[:space:]]*$/) {
+        if ($0 ~ /'\''[[:space:]]*,?[[:space:]]*$/) {
           in_extra = 0
-          sub(/'\''[[:space:]]*$/, "", extra)
+          sub(/'\''[[:space:]]*,?[[:space:]]*$/, "", extra)
           print extra
           exit
         }
@@ -93,6 +94,12 @@ SUITES=(
   "security/cacert_rotation"
   "pilot"
   "pilot/analysis"
+  "ambient"
+  "ambient/cni"
+  "ambient/cnirepair"
+  "ambient/cniupgrade"
+  "ambient/untaint"
+  "ambient/waypoint"
 )
 
 #echo "Checking for 'ingress' namespace..."
@@ -129,7 +136,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 	
 		echo "$GET_EXTRA_TEST_ARGS"
 		
@@ -141,7 +148,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 		
 		echo "$GET_EXTRA_TEST_ARGS"		
 
@@ -153,7 +160,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -165,7 +172,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -177,7 +184,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 		
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -189,7 +196,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -201,7 +208,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -213,7 +220,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -225,7 +232,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -237,7 +244,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -249,7 +256,7 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -273,7 +280,7 @@ if [[ -n "$TEST_PATH" ]]; then
 		
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
@@ -285,11 +292,83 @@ if [[ -n "$TEST_PATH" ]]; then
 
 		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
 
-                export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
 
 		echo "$GET_EXTRA_TEST_ARGS"
 
 		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
+
+    elif [[ " ${TEST_PATH} " = " ambient " ]]; then
+
+        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient.yaml
+
+        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+        echo "$GET_EXTRA_TEST_ARGS"
+
+        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
+	
+	elif [[ " ${TEST_PATH} " = " ambient/cni " ]]; then
+
+        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-cni.yaml
+
+        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+        echo "$GET_EXTRA_TEST_ARGS"
+
+        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
+    
+	elif [[ " ${TEST_PATH} " = " ambient/cnirepair " ]]; then
+
+        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-cnirepair.yaml
+
+        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+        echo "$GET_EXTRA_TEST_ARGS"
+
+        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
+	
+	elif [[ " ${TEST_PATH} " = " ambient/cniupgrade " ]]; then
+
+        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-cniupgrade.yaml
+
+        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+        echo "$GET_EXTRA_TEST_ARGS"
+
+        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
+	
+	elif [[ " ${TEST_PATH} " = " ambient/untaint " ]]; then
+
+        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-untaint.yaml
+
+        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+        echo "$GET_EXTRA_TEST_ARGS"
+
+        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
+	
+	elif [[ " ${TEST_PATH} " = " ambient/waypoint " ]]; then
+
+        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-waypoint.yaml
+
+        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
+
+        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
+
+        echo "$GET_EXTRA_TEST_ARGS"
+
+        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
 
 	fi
 	break
