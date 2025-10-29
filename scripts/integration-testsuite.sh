@@ -2,29 +2,27 @@
 
 set -euo pipefail
 
-# Check if the user is logged in
+# Check OpenShift login
 if ! oc whoami &>/dev/null; then
   echo " You are not logged into an OpenShift cluster."
   echo " Please log in using: oc login -u kubeadmin -p <password> --server=https://api.clustername.maistra.upshift.redhat.com:6443 --insecure-skip-tls-verify"
   exit 1
 fi
 
-# Show current user and cluster
 echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
 SOURCE_ROOT="/root"
-
-TEMPLATE_PATH="/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
+TEMPLATE_PATH="${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
 export PATH=$PATH:$(go env GOPATH)/bin
 export TAG=ibm-z
 export HUB=quay.io/maistra
 
 echo "Configuring istio ingressgateway & egressgateway"
-oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ingressgateway.yaml
-oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-egressgateway.yaml
+oc apply -f "${TEMPLATE_PATH}/istio-ingressgateway.yaml"
+oc apply -f "${TEMPLATE_PATH}/istio-egressgateway.yaml"
 
-cd ${SOURCE_ROOT}/istio
+cd "${SOURCE_ROOT}/istio"
 
 extract_extra_test_args() {
   local block_name="$1"
@@ -39,22 +37,21 @@ extract_extra_test_args() {
     }
 
     {
-      # Block start
+      # Start of block
       if ($0 ~ pattern) {
         in_block = 1
         next
       }
 
-      # Block end
+      # End of block
       if (in_block && $0 ~ /\][[:space:]]*\},?/) {
         in_block = 0
       }
 
-      # Match start of extraTestArgs
+      # Start of extraTestArgs
       if (in_block && match($0, /'\''extraTestArgs'\''[[:space:]]*:[[:space:]]*'\''(.*)/, m)) {
         in_extra = 1
         extra = m[1]
-        # Check for ending quote OR quote + comma
         if ($0 ~ /'\''[[:space:]]*,?[[:space:]]*$/) {
           in_extra = 0
           sub(/'\''[[:space:]]*,?[[:space:]]*$/, "", extra)
@@ -78,303 +75,89 @@ extract_extra_test_args() {
   ' "$groovy_file"
 }
 
+# Add test suite for template mapping
+declare -A TEMPLATE_MAP=(
+  # Telemetry
+  ["telemetry/api"]="istio-telemetry-api.yaml"
+  ["telemetry/policy"]="istio-telemetry-policy.yaml"
+  ["telemetry/tracing/zipkin"]="istio-telemetry-tracing-zipkin.yaml"
+  ["telemetry/tracing/otelcollector"]="istio-telemetry-tracing-otelcollector.yaml"
 
-SUITES=(
-  "telemetry/api"
-  "telemetry/policy"
-  "telemetry/tracing/zipkin"
-  "telemetry/tracing/otelcollector"
-  "security"
-  "security/policy_attachment_only"
-  "security/remote_jwks"
-  "security/https_jwt"
-  "security/filebased_tls_origination"
-  "security/ecc_signature_algorithm"
-  "security/ca_custom_root"
-  "security/cacert_rotation"
-  "pilot"
-  "pilot/analysis"
-  "ambient"
-  "ambient/cni"
-  "ambient/cnirepair"
-  "ambient/cniupgrade"
-  "ambient/untaint"
-  "ambient/waypoint"
+  # Security
+  ["security"]="istio-security.yaml"
+  ["security/policy_attachment_only"]="istio-security-policy-attachment-only.yaml"
+  ["security/remote_jwks"]="istio-security-remote-jwks.yaml"
+  ["security/https_jwt"]="istio-security-https-jwt.yaml"
+  ["security/filebased_tls_origination"]="istio-security-filebased-tls-origination.yaml"
+  ["security/ecc_signature_algorithm"]="istio-security-ecc-signature-algorithm.yaml"
+  ["security/ca_custom_root"]="istio-security-ca-custom-root.yaml"
+  ["security/cacert_rotation"]="istio-security-cacert-rotation.yaml"
+
+  # Pilot
+  ["pilot"]="istio-pilot.yaml"
+  ["pilot/analysis"]="istio-pilot-analysis.yaml"
+
+  # Ambient
+  ["ambient"]="istio-ambient.yaml"
+  ["ambient/cni"]="istio-ambient-cni.yaml"
+  ["ambient/cnirepair"]="istio-ambient-cnirepair.yaml"
+  ["ambient/cniupgrade"]="istio-ambient-cniupgrade.yaml"
+  ["ambient/untaint"]="istio-ambient-untaint.yaml"
+  ["ambient/waypoint"]="istio-ambient-waypoint.yaml"
 )
 
-#echo "Checking for 'ingress' namespace..."
-#if oc get ns ingress >/dev/null 2>&1; then
-#  echo "  -> Namespace 'ingress' exists. Deleting..."
-#  oc delete ns ingress
-#  echo "  -> Waiting for namespace to terminate..."
-#  while oc get ns ingress >/dev/null 2>&1; do
-#    sleep 5
-#  done
-#fi
-
-#echo "  -> Creating 'ingress' namespace..."
-#oc create namespace ingress
-
-
-echo " Select a test suite to run:"
-select TEST_PATH in "${SUITES[@]}"; do
-
-if [[ -n "$TEST_PATH" ]]; then
-    
-        TESTSUITEFILE=$(echo "$TEST_PATH" | sed 's|/|-|g')
-	TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-	LOGFILE="$TESTSUITEFILE-$TIMESTAMP.log"
-        echo " You selected suite: $TEST_PATH & Log will be saved at ${SOURCE_ROOT}/$LOGFILE"
-	
-        export STD_ARGS="-f testname --junitfile-project-name istio --junitfile /home/jenkins/workspace/sail/istio-integration-tests-suites/${TEST_PATH}/junit-$TESTSUITEFILE-$TIMESTAMP.xml --packages=./tests/integration/${TEST_PATH} -- -tags=integ -timeout 180m"
-	export TEST_ARGS="-args -istio.test.skipWorkloads=tproxy,vm -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.work_dir=/home/jenkins/workspace/sail/istio-integration-tests-suites/${TEST_PATH}/artifacts"
-
-
-	if [[ " ${TEST_PATH} " = " telemetry/api " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-api.yaml  
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-	
-		echo "$GET_EXTRA_TEST_ARGS"
-		
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " telemetry/policy " ]]; then
- 
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-policy.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-		
-		echo "$GET_EXTRA_TEST_ARGS"		
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " telemetry/tracing/zipkin " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-tracing-zipkin.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " telemetry/tracing/otelcollector " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-telemetry-tracing-otelcollector.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-		
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security/policy_attachment_only " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-policy-attachment-only.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security/remote_jwks " ]]; then
-	
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-remote-jwks.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security/https_jwt " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-https-jwt.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security/filebased_tls_origination " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-filebased-tls-origination.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security/ecc_signature_algorithm " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-ecc-signature-algorithm.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security/ca_custom_root " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-ca-custom-root.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " security/cacert_rotation " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-security-cacert-rotation.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-		export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " pilot " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-pilot.yaml
-		
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	elif [[ " ${TEST_PATH} " = " pilot/analysis " ]]; then
-
-		oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-pilot-analysis.yaml
-
-		GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-		echo "$GET_EXTRA_TEST_ARGS"
-
-		gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-    elif [[ " ${TEST_PATH} " = " ambient " ]]; then
-
-        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient.yaml
-
-        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-        echo "$GET_EXTRA_TEST_ARGS"
-
-        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-	
-	elif [[ " ${TEST_PATH} " = " ambient/cni " ]]; then
-
-        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-cni.yaml
-
-        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-        echo "$GET_EXTRA_TEST_ARGS"
-
-        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-    
-	elif [[ " ${TEST_PATH} " = " ambient/cnirepair " ]]; then
-
-        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-cnirepair.yaml
-
-        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-        echo "$GET_EXTRA_TEST_ARGS"
-
-        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-	
-	elif [[ " ${TEST_PATH} " = " ambient/cniupgrade " ]]; then
-
-        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-cniupgrade.yaml
-
-        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-        echo "$GET_EXTRA_TEST_ARGS"
-
-        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-	
-	elif [[ " ${TEST_PATH} " = " ambient/untaint " ]]; then
-
-        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-untaint.yaml
-
-        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-        echo "$GET_EXTRA_TEST_ARGS"
-
-        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-	
-	elif [[ " ${TEST_PATH} " = " ambient/waypoint " ]]; then
-
-        oc apply -f ${SOURCE_ROOT}${TEMPLATE_PATH}/istio-ambient-waypoint.yaml
-
-        GET_EXTRA_TEST_ARGS="$(extract_extra_test_args ${TEST_PATH})"
-
-        export EXTRA_TEST_ARGS="$GET_EXTRA_TEST_ARGS"
-
-        echo "$GET_EXTRA_TEST_ARGS"
-
-        gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$LOGFILE"
-
-	fi
-	break
-  
-else
-    	echo " Invalid selection. Try again."
-fi
+SUITES=("${!TEMPLATE_MAP[@]}")
+SUITES_SORTED=($(printf '%s\n' "${SUITES[@]}" | sort))
+
+run_test_suite() {
+  local test_path="$1"
+  local template_file="${TEMPLATE_MAP[$test_path]}"
+  local testsuite_file="${test_path//\//-}"
+  local timestamp=$(date +"%Y%m%d-%H%M%S")
+  local logfile="${SOURCE_ROOT}/${testsuite_file}-${timestamp}.log"
+  local report_dir="/home/jenkins/workspace/sail/istio-integration-tests-suites/${test_path}"
+
+  echo -e "\n==> Running test suite: $test_path"
+  echo "    Log will be saved at $logfile"
+
+  oc apply -f "${TEMPLATE_PATH}/${template_file}"
+
+  local get_extra_test_args
+  get_extra_test_args=$(extract_extra_test_args "$test_path")
+  export EXTRA_TEST_ARGS="$get_extra_test_args"
+  echo "$get_extra_test_args"
+
+  export STD_ARGS="-f testname --junitfile-project-name istio --junitfile ${report_dir}/junit-${testsuite_file}-${timestamp}.xml --packages=./tests/integration/${test_path} -- -tags=integ -timeout 180m"
+  export TEST_ARGS="-args -istio.test.skipWorkloads=tproxy,vm -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.work_dir=${report_dir}/artifacts"
+
+  gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$logfile"
+}
+
+# Prompt user to select test suite
+echo "Choose an option:"
+options=("Run Single Test Suites" "Run All Test Suite")
+select opt in "${options[@]}"; do
+  case $REPLY in
+    2)
+      for suite in "${SUITES_SORTED[@]}"; do
+        run_test_suite "$suite"
+      done
+      break
+      ;;
+    1)
+      echo "Select a test suite:"
+      select TEST_PATH in "${SUITES_SORTED[@]}"; do
+        if [[ -n "$TEST_PATH" ]]; then
+          run_test_suite "$TEST_PATH"
+          break 2
+        else
+          echo "Invalid selection. Try again."
+        fi
+      done
+      ;;
+    *)
+      echo "Invalid option. Try again."
+      ;;
+  esac
 done
 
