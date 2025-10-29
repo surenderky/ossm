@@ -2,10 +2,13 @@
 
 set -euo pipefail
 
-# OCP version
-OCP_VERSION="$1"
-# Cluster name
-CLUSTER_NAME="$2"
+CLUSTER_NAME="$1"
+OCP_VERSION="$2"
+BASE_DOMAIN="$3"
+USE_IPV6="$4"
+FIPS_ENABLED="$5"
+NODES_PROFILE="$6"
+
 
 
 HOSTNAME=$(hostname -s)
@@ -28,9 +31,17 @@ else
   echo " Skipping destroy step — directory $CLUSTER_DIR not found"
 fi
 
-# Step 2: Update cluster_version_profile only for the given cluster
-echo " Updating OpenShift version for cluster '$CLUSTER_NAME' in YAML..."
-sed -i "/- name: $CLUSTER_NAME/,/cluster_version_profile:/ s/cluster_version_profile: \".*\"/cluster_version_profile: \"$OCP_VERSION\"/" "$CONFIG_FILE"
+
+# Step 2: Update parameters only for the given cluster
+echo " Updating parameters for cluster '$CLUSTER_NAME' in YAML..."
+
+    sed -i "/- name: $CLUSTER_NAME/,/^- name:/ {
+      s|cluster_version_profile: \".*\"|cluster_version_profile: \"$OCP_VERSION\"|
+      s|base_domain: .*|base_domain: $BASE_DOMAIN|
+      s|use_ipv6: .*|use_ipv6: $USE_IPV6|
+      s|fips: .*|fips: $FIPS_ENABLED|
+      s|cluster_nodes_profile: .*|cluster_nodes_profile: $NODES_PROFILE|
+    }" "$CONFIG_FILE"
 
 # Step 3: Generate the new cluster configuration
 echo " Generating cluster configuration..."
@@ -46,7 +57,7 @@ echo " Logging in to $CLUSTER_NAME..."
 KUBEADMIN_PASSWORD=$(grep -oP 'Password:\s+\K.{23}' "$SOURCE_ROOT/$CLUSTER_NAME.log" | tail -n 1)
 
 if [[ -z "$KUBEADMIN_PASSWORD" ]]; then
-  echo "❌ Failed to extract kubeadmin password from $CLUSTER_NAME.log"
+  echo " Failed to extract kubeadmin password from $CLUSTER_NAME.log"
   exit 1
 fi
 
@@ -57,11 +68,11 @@ CLUSTER_API="https://api.$CLUSTER_NAME.maistra.upshift.redhat.com:6443"
 oc login -u kubeadmin -p "$KUBEADMIN_PASSWORD" --server="$CLUSTER_API" --insecure-skip-tls-verify
 
 if [[ $? -ne 0 ]]; then
-  echo "❌ Failed to login to cluster using kubeadmin credentials."
+  echo " Failed to login to cluster using kubeadmin credentials."
   exit 1
 fi
 
-echo "✅ Successfully logged into cluster $CLUSTER_NAME"
+echo " Successfully logged into cluster $CLUSTER_NAME"
 
 # Step 6: Install NFS
 echo " Installing NFS..."
@@ -69,10 +80,10 @@ echo " Installing NFS..."
 NFS_STATUS=$?
 
 if [ $NFS_STATUS -ne 0 ]; then
-  echo "❌ NFS installation failed. Exit code: $NFS_STATUS"
+  echo " NFS installation failed. Exit code: $NFS_STATUS"
   exit 1
 else
-  echo "✅ NFS installation completed successfully."
+  echo " NFS installation completed successfully."
 fi
 
 # Step 7: Update pull secrets
@@ -82,5 +93,5 @@ sleep 10
 #oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq
 
 # Step 8: Final Success Message
-echo "✅ Succesfuly created & configured OCP $OCP_VERSION inside '$CLUSTER_NAME'."
+echo " Succesfuly created & configured OCP $OCP_VERSION inside '$CLUSTER_NAME'."
 
