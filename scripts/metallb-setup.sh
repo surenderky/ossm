@@ -112,7 +112,21 @@ echo "  -> Speaker is running ($READY/$DESIRED pods ready)."
 
 # Step 7: Prompt for IP address range
 echo "[7/8] Setting up IPAddressPool..."
-read -p "Enter the IP address range for MetalLB (e.g., 192.168.150.11-192.168.150.25): " ip_range
+
+while :; do
+  echo -e "\n1) 192.168.150.13-192.168.150.27\n2) 192.168.160.13-192.168.160.27\n3) Other"
+  read -p "Choose IP address range option for IPAddressPool [1-3]: " c
+  case $c in
+    1) ip_range="192.168.150.13-192.168.150.27";;
+    2) ip_range="192.168.160.13-192.168.160.27";;
+    3) read -p "Enter IP range: " ip_range;;
+    *) echo "Invalid, try again."; continue;;
+  esac
+  [[ -z "$ip_range" ]] && { echo "Empty range, try again."; continue; }
+  read -p "Confirm '$ip_range'? (y/n): " ok
+  [[ $ok == [Yy] ]] && break
+done
+echo "Selected: $ip_range"
 
 cat <<EOF | oc apply -f -
 apiVersion: metallb.io/v1beta1

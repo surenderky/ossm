@@ -128,8 +128,7 @@ run_test_suite() {
   echo "$get_extra_test_args"
 
   export STD_ARGS="-f testname --junitfile-project-name istio --junitfile ${report_dir}/junit-${testsuite_file}-${timestamp}.xml --packages=./tests/integration/${test_path} -- -tags=integ -timeout 180m"
-  export TEST_ARGS="-args -istio.test.skipWorkloads=tproxy,vm -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.work_dir=${report_dir}/artifacts"
-
+  export TEST_ARGS="-args -istio.test.skipWorkloads=vm -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts"
   gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$logfile"
 }
 
