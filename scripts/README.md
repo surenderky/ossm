@@ -4,4 +4,5 @@ To Run Istio Integration Test Suite
 2) Need to run ./ossm/scripts/metallb-setup.sh and provide the Ip address range when asked.
 3) Run Jenkins downstream-pipeline-3 to setup Servicemesh and Kiali.
 4) Run ./ossm/scripts/setup-itms-idms.sh to setup images for Z&P.
-5) Run ./ossm/scripts/integration-testsuite.sh  and select the test suite number listed.
+5) Run ./ossm/scripts/ambient_mode_setup.sh to setup ambient mode.
+6) Run ./ossm/scripts/integration-testsuite.sh  and select the test suite type and number listed.
