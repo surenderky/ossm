@@ -4,13 +4,13 @@ set -euo pipefail
 
 # Check OpenShift login
 if ! oc whoami &>/dev/null; then
-  echo " You are not logged into an OpenShift cluster."
-  echo " Please log in using: oc login -u kubeadmin -p <password> --server=https://api.clustername.maistra.upshift.redhat.com:6443 --insecure-skip-tls-verify"
+  echo "You are not logged into an OpenShift cluster."
+  echo "Please log in using: oc login -u kubeadmin -p <password> --server=https://api.clustername.maistra.upshift.redhat.com:6443 --insecure-skip-tls-verify"
   exit 1
 fi
 
-echo " Logged in as: $(oc whoami)"
-echo " Current cluster: $(oc whoami --show-server)"
+echo "Logged in as: $(oc whoami)"
+echo "Current cluster: $(oc whoami --show-server)"
 
 SOURCE_ROOT="/root"
 TEMPLATE_PATH="${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
@@ -125,11 +125,30 @@ run_test_suite() {
   local get_extra_test_args
   get_extra_test_args=$(extract_extra_test_args "$test_path")
   export EXTRA_TEST_ARGS="$get_extra_test_args"
-  echo "$get_extra_test_args"
 
   export STD_ARGS="-f testname --junitfile-project-name istio --junitfile ${report_dir}/junit-${testsuite_file}-${timestamp}.xml --packages=./tests/integration/${test_path} -- -tags=integ -timeout 180m"
-  export TEST_ARGS="-args -istio.test.skipWorkloads=vm -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts"
+  
+  ISTIO_VERSION=$(oc get istio -A -o jsonpath='{.items[0].spec.version}' 2>/dev/null)
+  ISTIO_VERSION_NUM="${ISTIO_VERSION#v}"  
+  ISTIO_VERSION_NUM=$(oc get istio -A -o jsonpath='{.items[0].spec.version}' 2>/dev/null | sed 's/^v//')
+  if [ "$(printf '%s\n' "1.24.6" "$ISTIO_VERSION_NUM" | sort -V | head -n1)" != "1.24.6" ]; then
+    SKIP_WORKLOADS="vm"
+  else
+    SKIP_WORKLOADS="tproxy,vm"
+  fi
+  
+  helm_values="global.platform=openshift"
+  if oc get daemonset -n istio-system | grep -q "ztunnel"; then
+  helm_values=${helm_values}",pilot.trustedZtunnelNamespace=ztunnel"
+  ambient=" -istio.test.ambient"
+  fi
+
+  export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift${helm_values} -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts${ambient}"
+
+  echo "Using this Args = ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS}"
+ 
   gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$logfile"
+
 }
 
 # Prompt user to select test suite
