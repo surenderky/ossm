@@ -138,7 +138,7 @@ run_test_suite() {
   fi
   
   helm_values="global.platform=openshift"
-  if oc get daemonset -n istio-system | grep -q "ztunnel"; then
+  if oc get daemonset -n ztunnel >/dev/null 2>&1; then
   helm_values=${helm_values}",pilot.trustedZtunnelNamespace=ztunnel"
   ambient=" -istio.test.ambient"
   fi
