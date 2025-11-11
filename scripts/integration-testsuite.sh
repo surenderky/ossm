@@ -148,6 +148,8 @@ run_test_suite() {
 #  ambient=""
 #  fi
 
+export TEST_ARGS=""
+
 ## comment out this for sidecar
    #export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts"
 
