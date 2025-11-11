@@ -131,21 +131,30 @@ run_test_suite() {
   ISTIO_VERSION=$(oc get istio -A -o jsonpath='{.items[0].spec.version}' 2>/dev/null)
   ISTIO_VERSION_NUM="${ISTIO_VERSION#v}"  
   ISTIO_VERSION_NUM=$(oc get istio -A -o jsonpath='{.items[0].spec.version}' 2>/dev/null | sed 's/^v//')
-  if [ "$(printf '%s\n' "1.24.6" "$ISTIO_VERSION_NUM" | sort -V | head -n1)" != "1.24.6" ]; then
-    SKIP_WORKLOADS="vm"
+
+  if [ "$(printf '%s\n' "$ISTIO_VERSION_NUM" "1.24.6" | sort -V | head -n1)" = "$ISTIO_VERSION_NUM" ]; then
+  # ISTIO_VERSION_NUM is <= 1.24.6
+  SKIP_WORKLOADS="tproxy,vm"
   else
-    SKIP_WORKLOADS="tproxy,vm"
+  # ISTIO_VERSION_NUM is > 1.24.6
+  SKIP_WORKLOADS="vm"
   fi
   
-  helm_values="global.platform=openshift"
-  if oc get daemonset -n ztunnel >/dev/null 2>&1; then
-  helm_values=${helm_values}",pilot.trustedZtunnelNamespace=ztunnel"
-  ambient=" -istio.test.ambient"
-  fi
+#  if oc get daemonset/ztunnel -n ztunnel >/dev/null 2>&1; then
+#  helm_values="global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel"
+#  ambient="-istio.test.ambient"
+#  else
+#  helm_values="global.platform=openshift"
+#  ambient=""
+#  fi
 
-  export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift${helm_values} -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts${ambient}"
+## comment out this for sidecar
+   #export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts"
 
-  echo "Using this Args = ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS}"
+## comment out this for ambient
+   #export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts -istio.test.ambient"
+
+  echo "Using this Args = gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS}"
  
   gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS} 2>&1 | tee "$logfile"
 
