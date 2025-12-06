@@ -33,11 +33,11 @@ fi
 
 # Prompt for OCP version
 while true; do
-    read -p "Enter the OpenShift version (e.g., 4.14): " OCP_VERSION
+    read -p "Enter the OpenShift version (e.g., 4.yy): " OCP_VERSION
     if [[ -n "$OCP_VERSION" ]]; then
         break
     else
-        echo " Invalid input. Please enter a valid version (e.g., 4.14)."
+        echo " Invalid input. Please enter a valid version (e.g., 4.18)."
     fi
 done
 

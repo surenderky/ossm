@@ -14,7 +14,7 @@ echo " Current cluster: $(oc whoami --show-server)"
 
 TIMEOUT="3m"
 
-echo "Creating namespace for Istio control plane"
+echo "Creating namespace for Istio in sidecar mode"
 oc create namespace istio-system || echo "namespace istio-system may already exist"
 
 cat <<EOF > istio.yaml
@@ -24,10 +24,7 @@ metadata:
   name: default
 spec:
   namespace: istio-system
-  profile: ambient
-  values:
-    pilot:
-      trustedZtunnelNamespace: ztunnel
+  profile: default
 EOF
 
 echo "Applying Istio CR"
@@ -36,7 +33,7 @@ oc apply -f istio.yaml
 echo "Waiting for Istio control plane to become Ready"
 oc wait --for=condition=Ready istios/default --timeout=${TIMEOUT}
 
-echo "Creating namespace for Istio CNI"
+echo "Creating namespace for Istio CNI in sidecar mode"
 oc create namespace istio-cni || echo "namespace istio-cni may already exist"
 
 cat <<EOF > istio-cni.yaml
@@ -46,7 +43,7 @@ metadata:
   name: default
 spec:
   namespace: istio-cni
-  profile: ambient
+  profile: default
 EOF
 
 echo "Applying IstioCNI CR"
@@ -55,24 +52,4 @@ oc apply -f istio-cni.yaml
 echo "Waiting for IstioCNI pods to become Ready"
 oc wait --for=condition=Ready istios/default --timeout=${TIMEOUT}
 
-echo "Creating namespace for ZTunnel"
-oc create namespace ztunnel || echo "namespace ztunnel may already exist"
-
-cat <<EOF > ztunnel.yaml
-apiVersion: sailoperator.io/v1alpha1
-kind: ZTunnel
-metadata:
-  name: default
-spec:
-  namespace: ztunnel
-  profile: ambient
-EOF
-
-echo "Applying ZTunnel CR"
-oc apply -f ztunnel.yaml
-
-echo "Waiting for ZTunnel pods to become Ready"
-oc wait --for=condition=Ready ztunnel/default --timeout=${TIMEOUT}
-
-echo "Ambient mode installation complete."
-
+echo "Sidecar mode setup complete."

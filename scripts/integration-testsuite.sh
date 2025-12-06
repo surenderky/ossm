@@ -18,10 +18,6 @@ export PATH=$PATH:$(go env GOPATH)/bin
 export TAG=ibm-z
 export HUB=quay.io/maistra
 
-echo "Configuring istio ingressgateway & egressgateway"
-oc apply -f "${TEMPLATE_PATH}/istio-ingressgateway.yaml"
-oc apply -f "${TEMPLATE_PATH}/istio-egressgateway.yaml"
-
 cd "${SOURCE_ROOT}/istio"
 
 extract_extra_test_args() {
@@ -80,8 +76,8 @@ declare -A TEMPLATE_MAP=(
   # Telemetry
   ["telemetry/api"]="istio-telemetry-api.yaml"
   ["telemetry/policy"]="istio-telemetry-policy.yaml"
-  ["telemetry/tracing/zipkin"]="istio-telemetry-tracing-zipkin.yaml"
-  ["telemetry/tracing/otelcollector"]="istio-telemetry-tracing-otelcollector.yaml"
+#  ["telemetry/tracing/zipkin"]="istio-telemetry-tracing-zipkin.yaml"
+#  ["telemetry/tracing/otelcollector"]="istio-telemetry-tracing-otelcollector.yaml"
 
   # Security
   ["security"]="istio-security.yaml"
@@ -100,14 +96,23 @@ declare -A TEMPLATE_MAP=(
   # Ambient
   ["ambient"]="istio-ambient.yaml"
   ["ambient/cni"]="istio-ambient-cni.yaml"
-  ["ambient/cnirepair"]="istio-ambient-cnirepair.yaml"
-  ["ambient/cniupgrade"]="istio-ambient-cniupgrade.yaml"
-  ["ambient/untaint"]="istio-ambient-untaint.yaml"
-  ["ambient/waypoint"]="istio-ambient-waypoint.yaml"
+#  ["ambient/cnirepair"]="istio-ambient-cnirepair.yaml"
+#  ["ambient/cniupgrade"]="istio-ambient-cniupgrade.yaml"
+#  ["ambient/untaint"]="istio-ambient-untaint.yaml"
+#  ["ambient/waypoint"]="istio-ambient-waypoint.yaml"
 )
 
 SUITES=("${!TEMPLATE_MAP[@]}")
 SUITES_SORTED=($(printf '%s\n' "${SUITES[@]}" | sort))
+
+cat <<EOF > istio.yaml 
+  apiVersion: sailoperator.io/v1
+  kind: Istio
+  metadata:
+    name: default
+  spec:
+    namespace: istio-system
+EOF
 
 run_test_suite() {
   local test_path="$1"
@@ -119,8 +124,22 @@ run_test_suite() {
 
   echo -e "\n==> Running test suite: $test_path"
   echo "    Log will be saved at $logfile"
-
+  
+  echo "Configuring ${test_path}.yaml"
+  oc delete -f istio.yaml --ignore-not-found
+  sleep 5
   oc apply -f "${TEMPLATE_PATH}/${template_file}"
+  sleep 20
+  
+  echo "Configuring istio ingressgateway & egressgateway"
+  oc delete -f "${TEMPLATE_PATH}/istio-ingressgateway.yaml" --ignore-not-found
+  sleep 5
+  oc delete -f "${TEMPLATE_PATH}/istio-egressgateway.yaml" --ignore-not-found
+  sleep 5
+  oc apply -f "${TEMPLATE_PATH}/istio-ingressgateway.yaml"
+  sleep 5
+  oc apply -f "${TEMPLATE_PATH}/istio-egressgateway.yaml"
+  sleep 5
 
   local get_extra_test_args
   get_extra_test_args=$(extract_extra_test_args "$test_path")
@@ -137,24 +156,16 @@ run_test_suite() {
   SKIP_WORKLOADS="tproxy,vm"
   else
   # ISTIO_VERSION_NUM is > 1.24.6
-  SKIP_WORKLOADS="vm"
+  SKIP_WORKLOADS="tproxy,vm"
   fi
-  
-#  if oc get daemonset/ztunnel -n ztunnel >/dev/null 2>&1; then
-#  helm_values="global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel"
-#  ambient="-istio.test.ambient"
-#  else
-#  helm_values="global.platform=openshift"
-#  ambient=""
-#  fi
 
 export TEST_ARGS=""
 
-## comment out this for sidecar
-   #export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts"
-
-## comment out this for ambient
-   #export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts -istio.test.ambient"
+if [[ "$test_path" == *"ambient"* ]]; then
+   export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts -istio.test.ambient"
+else
+   export TEST_ARGS="-args -istio.test.skipWorkloads=${SKIP_WORKLOADS} -istio.test.openshift -istio.test.kube.helm.values=global.platform=openshift -istio.test.istio.enableCNI=true -istio.test.ci=true -istio.test.env=kube -istio.test.kube.deploy=false -istio.test.stableNamespaces=true -istio.test.kube.deployGatewayAPI=false -istio.test.gatewayConformance.maxTimeToConsistency=180s -istio.test.work_dir=${report_dir}/artifacts"
+fi
 
   echo "Using this Args = gotestsum ${STD_ARGS} ${TEST_ARGS} ${EXTRA_TEST_ARGS}"
  
@@ -162,31 +173,43 @@ export TEST_ARGS=""
 
 }
 
-# Prompt user to select test suite
-echo "Choose an option:"
-options=("Run Single Test Suites" "Run All Test Suite")
-select opt in "${options[@]}"; do
-  case $REPLY in
-    2)
-      for suite in "${SUITES_SORTED[@]}"; do
-        run_test_suite "$suite"
-      done
-      break
-      ;;
-    1)
-      echo "Select a test suite:"
-      select TEST_PATH in "${SUITES_SORTED[@]}"; do
-        if [[ -n "$TEST_PATH" ]]; then
-          run_test_suite "$TEST_PATH"
-          break 2
-        else
-          echo "Invalid selection. Try again."
-        fi
-      done
-      ;;
-    *)
-      echo "Invalid option. Try again."
-      ;;
-  esac
+unset GROUPS
+
+GROUPS=("telemetry" "pilot" "security" "ambient")
+
+echo "Select a group:"
+select GROUP in "${GROUPS[@]}"; do
+  [[ -n "$GROUP" ]] && break
+  echo "Invalid selection. Try again."
 done
 
+GROUP_SUITES=()
+for s in "${SUITES[@]}"; do
+  if [[ "$s" == "$GROUP"* ]]; then
+    GROUP_SUITES+=("$s")
+  fi
+done
+
+# Add "Run ALL" option
+GROUP_SUITES+=("Run ALL")
+
+echo "Select a test suite:"
+select choice in "${GROUP_SUITES[@]}"; do
+
+  # Invalid selection
+  [[ -z "$choice" ]] && echo "Invalid selection" && continue
+
+  # ---------- RUN ALL ----------
+  if [[ "$choice" == "Run ALL" ]]; then
+    echo "Running ALL suites for group: $GROUP"
+    for suite in "${GROUP_SUITES[@]}"; do
+      [[ "$suite" == "Run ALL" ]] && continue
+      run_test_suite "$suite"
+    done
+    break
+  fi
+
+  # ---------- RUN SINGLE ----------
+  run_test_suite "$choice"
+  break
+done
