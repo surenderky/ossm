@@ -112,6 +112,20 @@ cat <<EOF > istio.yaml
     name: default
   spec:
     namespace: istio-system
+    profile: default
+EOF
+
+cat <<EOF > istio-ambient.yaml
+apiVersion: sailoperator.io/v1
+kind: Istio
+metadata:
+  name: default
+spec:
+  namespace: istio-system
+  profile: ambient
+  values:
+    pilot:
+      trustedZtunnelNamespace: ztunnel
 EOF
 
 run_test_suite() {
@@ -126,7 +140,11 @@ run_test_suite() {
   echo "    Log will be saved at $logfile"
   
   echo "Configuring ${test_path}.yaml"
-  oc delete -f istio.yaml --ignore-not-found
+  if [[ "$test_path" == *"ambient"* ]]; then
+	  oc delete -f istio-ambient.yaml --ignore-not-found
+  else
+          oc delete -f istio.yaml --ignore-not-found
+  fi
   sleep 5
   oc apply -f "${TEMPLATE_PATH}/${template_file}"
   sleep 20
