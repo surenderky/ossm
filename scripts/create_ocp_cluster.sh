@@ -55,6 +55,19 @@ else
 done
 fi
 
+# Select cluster type
+while true; do
+    read -p "Enable disconnected mode? (True / False): " DISCONNECTED_ENABLED
+    case "$DISCONNECTED_ENABLED" in
+        True|False)
+            break
+            ;;
+        *)
+            echo " Invalid input. Please enter exactly 'True' or 'False'."
+            ;;
+    esac
+done
+
 # Prompt for IPv6
 while true; do
     read -p "Use IPv6? (True / False): " USE_IPV6
@@ -99,6 +112,7 @@ done
 echo "=========================================="
 echo "You have entered:"
 echo "   Cluster name     : $CLUSTER_NAME"
+echo "   Disocnnected     : $DISCONNECTED_ENABLED"
 echo "   OpenShift version: $OCP_VERSION"
 echo "   Base Domain      : $BASE_DOMAIN"
 echo "   IPV6             : $USE_IPV6"
@@ -108,7 +122,7 @@ echo "=========================================="
 
 read -p "Do you want to continue with these settings? (yes/no): " CONFIRM
 if [[ "$CONFIRM" = "yes" ]]; then
-	setsid ./ossm/scripts/ocp_cluster_setup.sh $CLUSTER_NAME $OCP_VERSION $BASE_DOMAIN $USE_IPV6 $FIPS_ENABLED $NODES_PROFILE > $SOURCE_ROOT/$CLUSTER_NAME.log 2>&1 & tail -f $SOURCE_ROOT/$CLUSTER_NAME.log
+	setsid ./ossm/scripts/ocp_cluster_setup.sh $CLUSTER_NAME $OCP_VERSION $BASE_DOMAIN $DISCONNECTED_ENABLED $USE_IPV6 $FIPS_ENABLED $NODES_PROFILE > $SOURCE_ROOT/$CLUSTER_NAME.log 2>&1 & tail -f $SOURCE_ROOT/$CLUSTER_NAME.log
 else
        echo " Aborted by user."
        exit 1

@@ -5,9 +5,10 @@ set -euo pipefail
 CLUSTER_NAME="$1"
 OCP_VERSION="$2"
 BASE_DOMAIN="$3"
-USE_IPV6="$4"
-FIPS_ENABLED="$5"
-NODES_PROFILE="$6"
+DISCONNECTED_ENABLED="$4"
+USE_IPV6="$5"
+FIPS_ENABLED="$6"
+NODES_PROFILE="$7"
 
 
 
@@ -38,6 +39,7 @@ echo " Updating parameters for cluster '$CLUSTER_NAME' in YAML..."
     sed -i "/- name: $CLUSTER_NAME/,/^- name:/ {
       s|cluster_version_profile: \".*\"|cluster_version_profile: \"$OCP_VERSION\"|
       s|base_domain: .*|base_domain: $BASE_DOMAIN|
+      s|enabled: .*|enabled: $DISCONNECTED_ENABLED|
       s|use_ipv6: .*|use_ipv6: $USE_IPV6|
       s|fips: .*|fips: $FIPS_ENABLED|
       s|cluster_nodes_profile: .*|cluster_nodes_profile: $NODES_PROFILE|
