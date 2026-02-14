@@ -13,10 +13,9 @@ fi
 echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
-SOURCE_ROOT="/root"
+SOURCE_ROOT="$(pwd)"
 
 oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/ibm/istio-integration-registry-itms-idms.yaml
-#oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/ibm/sail-e2e-registry-itms-idms.yaml
 
 sleep 30
 

@@ -12,7 +12,7 @@ fi
 echo "Logged in as: $(oc whoami)"
 echo "Current cluster: $(oc whoami --show-server)"
 
-SOURCE_ROOT="/root"
+SOURCE_ROOT="$(pwd)"
 TEMPLATE_PATH="${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
 export PATH=$PATH:$(go env GOPATH)/bin
 export TAG=ibm-z
@@ -76,8 +76,8 @@ declare -A TEMPLATE_MAP=(
   # Telemetry
   ["telemetry/api"]="istio-telemetry-api.yaml"
   ["telemetry/policy"]="istio-telemetry-policy.yaml"
-#  ["telemetry/tracing/zipkin"]="istio-telemetry-tracing-zipkin.yaml"
-#  ["telemetry/tracing/otelcollector"]="istio-telemetry-tracing-otelcollector.yaml"
+  ["telemetry/tracing/zipkin"]="istio-telemetry-tracing-zipkin.yaml"
+  ["telemetry/tracing/otelcollector"]="istio-telemetry-tracing-otelcollector.yaml"
 
   # Security
   ["security"]="istio-security.yaml"

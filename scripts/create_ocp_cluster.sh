@@ -8,19 +8,6 @@ HOSTNAME=$(hostname -s)
 SCRIPT_DIR="${SOURCE_ROOT}/OCP-Setup-Automation"
 CONFIG_FILE="${SCRIPT_DIR}/${HOSTNAME}.yaml"
 
-# Cluster project type
-while true; do
-    read -p "Select cluster project type (ossm / other): " CLUSTER_PROJECT
-    case "$CLUSTER_PROJECT" in
-        ossm|other)
-            break
-            ;;
-        *)
-            echo " Invalid input. Please enter exactly 'ossm' or 'other'."
-            ;;
-    esac
-done
-
 # Select cluster name
 echo "Available clusters:"
 grep -E '^[[:space:]]{2}-[[:space:]]+name:' "$CONFIG_FILE" | awk '{print $3}'
@@ -41,55 +28,51 @@ while true; do
     fi
 done
 
-# Promt for base domain
-if [[ "$CLUSTER_PROJECT" == "ossm" ]]; then
-    BASE_DOMAIN="maistra.upshift.redhat.com"
-else    
-    while true; do
-    read -p "Enter base domain (e.g., maistra.upshift.redhat.com): " BASE_DOMAIN
-    if [[ -n "$BASE_DOMAIN" ]]; then
-        break
-    else
-        echo " Invalid input. Please enter a valid domain (e.g., maistra.upshift.redhat.com)."
-    fi
-done
-fi
-
-# Select cluster type
+# Promt for Disconnected Mode
 while true; do
-    read -p "Enable disconnected mode? (True / False): " DISCONNECTED_ENABLED
+    read -p "Enable Disconnected mode? (True / False) : " DISCONNECTED_ENABLED
+
+    # If user presses Enter, set default
+    DISCONNECTED_ENABLED=${DISCONNECTED_ENABLED:-False}
+
     case "$DISCONNECTED_ENABLED" in
         True|False)
             break
             ;;
         *)
-            echo " Invalid input. Please enter exactly 'True' or 'False'."
+            echo "❌ Invalid input. Please enter exactly 'True' or 'False', or press Enter for default."
             ;;
     esac
 done
 
 # Prompt for IPv6
-while true; do
-    read -p "Use IPv6? (True / False): " USE_IPV6
-    case "$USE_IPV6" in
-        True|False)
-            break
-            ;;
-        *)
-            echo " Invalid input. Please enter exactly 'True' or 'False'."
-            ;;
-    esac
-done
+#while true; do
+#    read -p "Enable IPv6? (True / False) : " IPV6_ENABLED
+#    # Default to False if no input is provided
+#    IPV6_ENABLED=${IPV6_ENABLED:-False}
+#    case "$IPV6_ENABLED" in
+#        True|False)
+#            break
+#            ;;
+#        *)
+#            echo " Invalid input. Please enter exactly 'True' or 'False'."
+#            ;;
+#    esac
+#done
 
 # Prompt for FIPS
 while true; do
-    read -p "Enable FIPS? (True / False): " FIPS_ENABLED
+    read -p "Enable FIPS? (True / False) : " FIPS_ENABLED
+
+    # Default to False if no input is provided
+    FIPS_ENABLED=${FIPS_ENABLED:-False}
+
     case "$FIPS_ENABLED" in
         True|False)
             break
             ;;
         *)
-            echo " Invalid input. Please enter exactly 'True' or 'False'."
+            echo "❌ Invalid input. Please enter exactly 'True' or 'False', or press Enter for default."
             ;;
     esac
 done
@@ -110,23 +93,19 @@ done
 # Confirm with before proceeding
 
 echo "=========================================="
-echo "You have entered:"
-echo "   Cluster name     : $CLUSTER_NAME"
-echo "   Disocnnected     : $DISCONNECTED_ENABLED"
-echo "   OpenShift version: $OCP_VERSION"
-echo "   Base Domain      : $BASE_DOMAIN"
-echo "   IPV6             : $USE_IPV6"
-echo "   FIPS             : $FIPS_ENABLED"   
-echo "   Nodes Profile    : $NODES_PROFILE"
+echo "You have selected:"
+echo "   Cluster name         : $CLUSTER_NAME"
+echo "   OpenShift version    : $OCP_VERSION"
+echo "   Disconnected Enabled : $DISCONNECTED_ENABLED"
+#echo "   IPV6 Enabled        : $IPV6_ENABLED"
+echo "   FIPS Enabled         : $FIPS_ENABLED"   
+echo "   Nodes Profile        : $NODES_PROFILE"
 echo "=========================================="
 
 read -p "Do you want to continue with these settings? (yes/no): " CONFIRM
 if [[ "$CONFIRM" = "yes" ]]; then
-	setsid ./ossm/scripts/ocp_cluster_setup.sh $CLUSTER_NAME $OCP_VERSION $BASE_DOMAIN $DISCONNECTED_ENABLED $USE_IPV6 $FIPS_ENABLED $NODES_PROFILE > $SOURCE_ROOT/$CLUSTER_NAME.log 2>&1 & tail -f $SOURCE_ROOT/$CLUSTER_NAME.log
+        setsid ./ossm/scripts/ocp_cluster_setup.sh $CLUSTER_NAME $OCP_VERSION $DISCONNECTED_ENABLED $FIPS_ENABLED $NODES_PROFILE > $SOURCE_ROOT/$CLUSTER_NAME.log 2>&1 & tail -f $SOURCE_ROOT/$CLUSTER_NAME.log
 else
        echo " Aborted by user."
        exit 1
 fi
-
-
-

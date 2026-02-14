@@ -3,13 +3,13 @@ set -euo pipefail
 
 SOURCE_ROOT="$(pwd)"
 
-rm -rf istio/
+rm -rf $SOURCE_ROOT/istio/
 
 read -rp "Enter ISTIO_GIT_BRANCH: " ISTIO_GIT_BRANCH
 
 git clone https://github.com/istio/istio
 
-cd istio
+cd istio/
 
 git checkout $ISTIO_GIT_BRANCH
 

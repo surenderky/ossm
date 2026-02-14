@@ -4,13 +4,11 @@ set -euo pipefail
 
 CLUSTER_NAME="$1"
 OCP_VERSION="$2"
-BASE_DOMAIN="$3"
-DISCONNECTED_ENABLED="$4"
-USE_IPV6="$5"
-FIPS_ENABLED="$6"
-NODES_PROFILE="$7"
-
-
+DISCONNECTED_ENABLED="$3"
+#USE_IPV6="$5"
+FIPS_ENABLED="$4"
+NODES_PROFILE="$5"
+REGISTRY_URL="registry.redhat.io/redhat/redhat-operator-index:v$OCP_VERSION"
 
 HOSTNAME=$(hostname -s)
 SOURCE_ROOT="/root"
@@ -24,26 +22,28 @@ echo "Using cluster name: $CLUSTER_NAME"
 echo "Using location file: $CONFIG_FILE"
 
 # Step 1: Destroy existing cluster (only if directory exists)
+#rm -rf /opt/ocp-clusters/.cluster_version
+#rm -rf ~/.cache/flit\:openshift-setup-automation-web-scrapper-cache.sqlite
 CLUSTER_DIR="/opt/ocp-clusters/$CLUSTER_NAME/install"
 if [ -d "$CLUSTER_DIR" ]; then
   echo " Destroying cluster..."
-  ./kvm_single_lpar.py -l "$CONFIG_FILE" -c "$CLUSTER_NAME" cluster-destroy
+  ./kvm_single_lpar.py -l "$CONFIG_FILE" -c "$CLUSTER_NAME" destroy
 else
   echo " Skipping destroy step — directory $CLUSTER_DIR not found"
 fi
 
-
 # Step 2: Update parameters only for the given cluster
 echo " Updating parameters for cluster '$CLUSTER_NAME' in YAML..."
 
-    sed -i "/- name: $CLUSTER_NAME/,/^- name:/ {
-      s|cluster_version_profile: \".*\"|cluster_version_profile: \"$OCP_VERSION\"|
-      s|base_domain: .*|base_domain: $BASE_DOMAIN|
-      s|enabled: .*|enabled: $DISCONNECTED_ENABLED|
-      s|use_ipv6: .*|use_ipv6: $USE_IPV6|
-      s|fips: .*|fips: $FIPS_ENABLED|
-      s|cluster_nodes_profile: .*|cluster_nodes_profile: $NODES_PROFILE|
-    }" "$CONFIG_FILE"
+yq -i "
+  (.clusters[] | select(.name == \"$CLUSTER_NAME\")) |= (
+    .cluster_version_profile = \"$OCP_VERSION\" |
+    .disconnected.enabled = \"$DISCONNECTED_ENABLED\" |
+    .disconnected.image_set_parts.operators[].catalog? = \"$REGISTRY_URL\" |
+    .fips = $FIPS_ENABLED |
+    .aop_standard.cluster_nodes_profile = \"$NODES_PROFILE\"
+  )
+" "$CONFIG_FILE"
 
 # Step 3: Generate the new cluster configuration
 echo " Generating cluster configuration..."
@@ -94,6 +94,9 @@ oc set data secret/pull-secret -n openshift-config --from-file=/root/.dockerconf
 sleep 10
 #oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq
 
-# Step 8: Final Success Message
+# Step 8: Set project to default
+oc project default 
+
+# Step 9: Final Success Message
 echo " Succesfuly created & configured OCP $OCP_VERSION inside '$CLUSTER_NAME'."
 
