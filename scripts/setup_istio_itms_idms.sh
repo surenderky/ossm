@@ -15,6 +15,10 @@ echo " Current cluster: $(oc whoami --show-server)"
 
 SOURCE_ROOT="$(pwd)"
 
+if oc get itms "istio-integration-required-images-registry-mirror" &>/dev/null && oc get idms "istio-integration-required-images-registry-mirror" &>/dev/null; then
+    echo "Skipping setup as istio-integration-required-images-registry-mirror already exists in ITMS and IDMS"
+else
+
 oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/ibm/istio-integration-registry-itms-idms.yaml
 
 sleep 30
@@ -30,4 +34,4 @@ for mcp in $(oc get mcp -o name); do
 done
 
 echo "All MCPs updated successfully."
-
+fi

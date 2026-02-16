@@ -15,10 +15,18 @@ echo "Current cluster: $(oc whoami --show-server)"
 SOURCE_ROOT="$(pwd)"
 TEMPLATE_PATH="${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
 export PATH=$PATH:$(go env GOPATH)/bin
-export TAG=ibm-z
 export HUB=quay.io/maistra
 
+if [[ "$(uname -m)" == "s390x" ]]; then
+    export TAG="ibm-z"
+else
+    export TAG="ibm-p"
+fi
+
 cd "${SOURCE_ROOT}/istio"
+
+LOG_FOLDER="/root/istio_test_logs_$(date +%F)"
+mkdir -p "$LOG_FOLDER"
 
 extract_extra_test_args() {
   local block_name="$1"
@@ -76,8 +84,8 @@ declare -A TEMPLATE_MAP=(
   # Telemetry
   ["telemetry/api"]="istio-telemetry-api.yaml"
   ["telemetry/policy"]="istio-telemetry-policy.yaml"
-  ["telemetry/tracing/zipkin"]="istio-telemetry-tracing-zipkin.yaml"
-  ["telemetry/tracing/otelcollector"]="istio-telemetry-tracing-otelcollector.yaml"
+#  ["telemetry/tracing/zipkin"]="istio-telemetry-tracing-zipkin.yaml"
+#  ["telemetry/tracing/otelcollector"]="istio-telemetry-tracing-otelcollector.yaml"
 
   # Security
   ["security"]="istio-security.yaml"
@@ -133,7 +141,7 @@ run_test_suite() {
   local template_file="${TEMPLATE_MAP[$test_path]}"
   local testsuite_file="${test_path//\//-}"
   local timestamp=$(date +"%Y%m%d-%H%M%S")
-  local logfile="${SOURCE_ROOT}/${testsuite_file}-${timestamp}.log"
+  local logfile="$LOG_FOLDER/${testsuite_file}-${timestamp}.log"
   local report_dir="/home/jenkins/workspace/sail/istio-integration-tests-suites/${test_path}"
 
   echo -e "\n==> Running test suite: $test_path"
@@ -191,43 +199,31 @@ fi
 
 }
 
-unset GROUPS
+unset GROUP
+unset GROUP_LIST
 
-GROUPS=("telemetry" "pilot" "security" "ambient")
+GROUP_LIST=("telemetry" "pilot" "security" "ambient")
 
 echo "Select a group:"
-select GROUP in "${GROUPS[@]}"; do
+select GROUP in "${GROUP_LIST[@]}"; do
   [[ -n "$GROUP" ]] && break
   echo "Invalid selection. Try again."
 done
 
+# Build suite list for the selected group
 GROUP_SUITES=()
 for s in "${SUITES[@]}"; do
-  if [[ "$s" == "$GROUP"* ]]; then
-    GROUP_SUITES+=("$s")
-  fi
+  [[ "$s" == "$GROUP"* ]] && GROUP_SUITES+=("$s")
 done
 
-# Add "Run ALL" option
-GROUP_SUITES+=("Run ALL")
+if [[ ${#GROUP_SUITES[@]} -eq 0 ]]; then
+  echo "No test suites found for group: $GROUP"
+  exit 1
+fi
 
 echo "Select a test suite:"
-select choice in "${GROUP_SUITES[@]}"; do
-
-  # Invalid selection
-  [[ -z "$choice" ]] && echo "Invalid selection" && continue
-
-  # ---------- RUN ALL ----------
-  if [[ "$choice" == "Run ALL" ]]; then
-    echo "Running ALL suites for group: $GROUP"
-    for suite in "${GROUP_SUITES[@]}"; do
-      [[ "$suite" == "Run ALL" ]] && continue
-      run_test_suite "$suite"
-    done
-    break
-  fi
-
-  # ---------- RUN SINGLE ----------
-  run_test_suite "$choice"
+select SUITE in "${GROUP_SUITES[@]}"; do
+  [[ -z "$SUITE" ]] && echo "Invalid selection" && continue
+  run_test_suite "$SUITE"
   break
 done

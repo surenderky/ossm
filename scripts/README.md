@@ -1,13 +1,13 @@
 To Run Istio Integration Test Suite
 
-1) Run ./config-github-istio.sh to configure istio git repo branch and istio version for each different OSSM version.
+1) Run ./config_github_istio.sh to configure istio git repo branch and istio version for each different OSSM version.
 
 	 - Example: OSSM 3.2.2 release branch is release-1.27 and istio version is v1.27.5
 	 - Note: Need to configure istio git repo branch each time for every different ISTIO version. 
 
-2) Run ./metallb-setup.sh and provide the Ip address range when asked.
+2) Run ./metallb_setup.sh and provide the Ip address range when asked.
 
-3) Run ./setup-itms-idms.sh to setup images.
+3) Run ./setup_istio_itms_idms.sh to setup images.
 
 4) Run Jenkins downstream-pipeline-3 job to setup Servicemesh with below configuration.
 
@@ -19,4 +19,4 @@ To Run Istio Integration Test Suite
 
 	 - For setup Sidecar mode run ./sidecar_mode_setup.sh and post testing ./remove_sidecar_mode.sh
 
-6) Run ./integration-testsuite.sh and select single or ALL to run the desired test suite.
+6) Run ./integration_testsuite.sh and select single or ALL to run the desired test suite.
