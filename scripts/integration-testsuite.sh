@@ -15,7 +15,13 @@ echo "Current cluster: $(oc whoami --show-server)"
 SOURCE_ROOT="$(pwd)"
 TEMPLATE_PATH="${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
 export PATH=$PATH:$(go env GOPATH)/bin
-export TAG=ibm-z
+
+if [[ "$(uname -m)" == "s390x" ]]; then
+    export TAG="ibm-z"
+else
+    export TAG="ibm-p"
+fi
+
 export HUB=quay.io/maistra
 
 cd "${SOURCE_ROOT}/istio"
