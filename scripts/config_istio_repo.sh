@@ -6,13 +6,13 @@ SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SOURCE_ROOT"
 
 # ---- User input ----
-read -rp "Enter ISTIO minor version (e.g. 1.2X): " ISTIO_GIT_RELEASE_VERSION
-read -rp "Enter ISTIO_VERSION (v1.2X.X): " ISTIO_CR_VERSION
+read -rp "Enter ISTIO GIT RELEASE VERSION (e.g. 1.2X): " ISTIO_GIT_RELEASE_VERSION
+read -rp "Enter ISTIO VERSION (eg v1.2X.X): " ISTIO_CR_VERSION
 
 ISTIO_GIT_BRANCH="release-${ISTIO_GIT_RELEASE_VERSION}"
 
 # ---- Repos ----
-ISTIO_REPO=https://github.com/istio/istio.git
+ISTIO_REPO=git@github.com:istio/istio.git
 ISTIO_DIR=istio
 
 CSB_REPO=git@gitlab.cee.redhat.com:istio/servicemesh-qe/jenkins-csb-declaration.git
