@@ -1,8 +1,8 @@
 To Run Istio Integration Test Suite
 
-1) Run ./config_github_istio.sh to configure istio git repo branch and istio version for each different OSSM version.
+1) Run ./config_istio_repo.sh to configure istio git repo branch and istio version for each different OSSM version.
 
-	 - Example: OSSM 3.2.2 release branch is release-1.27 and istio version is v1.27.5
+	 - Example: OSSM 3.2.2 release branch is 1.27 and istio version is v1.27.5
 	 - Note: Need to configure istio git repo branch each time for every different ISTIO version. 
 
 2) Run ./metallb_setup.sh and provide the Ip address range when asked.
@@ -19,4 +19,6 @@ To Run Istio Integration Test Suite
 
 	 - For setup Sidecar mode run ./sidecar_mode_setup.sh and post testing ./remove_sidecar_mode.sh
 
-6) Run ./integration_testsuite.sh and select single or ALL to run the desired test suite.
+6) Run ./integration-tests-suites.sh and select single or ALL to run the desired test suite.
+
+	- Note: Istio test logs will be stored at /root/istio_test_logs and Junit report we be stored at /root/junit_report_istio/istio-integration-tests-suites.

@@ -12,8 +12,27 @@ fi
 echo "Logged in as: $(oc whoami)"
 echo "Current cluster: $(oc whoami --show-server)"
 
-SOURCE_ROOT="$(pwd)"
+# OSSM version
+OSSM_VERSION=$(oc get csv -n openshift-operators \
+  --no-headers \
+  -o custom-columns=NAME:.metadata.name,VERSION:.spec.version \
+  | grep servicemeshoperator3 \
+  | awk '{print $2}')
+
+# OCP version
+OCP_VERSION=$(oc get clusterversion version -o jsonpath='{.status.desired.version}' | cut -d. -f1,2)
+
+# FIPS mode
+FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}') \
+  -- chroot /host cat /proc/sys/crypto/fips_enabled 2>/dev/null \
+  | grep -q '^1$' && echo FIPS || echo Non-FIPS)
+
+RELEASE_VERSION="OSSM-$OSSM_VERSION-OCP-$OCP_VERSION-$FIPS_MODE"
+
+SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 TEMPLATE_PATH="${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/istio"
+
 export PATH=$PATH:$(go env GOPATH)/bin
 export HUB=quay.io/maistra
 
@@ -25,7 +44,9 @@ fi
 
 cd "${SOURCE_ROOT}/istio"
 
-LOG_FOLDER="/root/istio_test_logs_$(date +%F)"
+JUNIT_FOLDER="/root/junit_report_istio/istio-integration-tests-suites/$RELEASE_VERSION"
+mkdir -p "$JUNIT_FOLDER"
+LOG_FOLDER="/root/istio_test_logs/$RELEASE_VERSION"
 mkdir -p "$LOG_FOLDER"
 
 extract_extra_test_args() {
@@ -142,7 +163,7 @@ run_test_suite() {
   local testsuite_file="${test_path//\//-}"
   local timestamp=$(date +"%Y%m%d-%H%M%S")
   local logfile="$LOG_FOLDER/${testsuite_file}-${timestamp}.log"
-  local report_dir="/home/jenkins/workspace/sail/istio-integration-tests-suites/${test_path}"
+  local report_dir="$JUNIT_FOLDER/${test_path}"
 
   echo -e "\n==> Running test suite: $test_path"
   echo "    Log will be saved at $logfile"
@@ -171,7 +192,7 @@ run_test_suite() {
   get_extra_test_args=$(extract_extra_test_args "$test_path")
   export EXTRA_TEST_ARGS="$get_extra_test_args"
 
-  export STD_ARGS="-f testname --junitfile-project-name istio --junitfile ${report_dir}/junit-${testsuite_file}-${timestamp}.xml --packages=./tests/integration/${test_path} -- -tags=integ -timeout 180m"
+  export STD_ARGS="-f testname --junitfile-project-name istio --junitfile ${report_dir}/$RELEASE_VERSION-junit-${testsuite_file}-${timestamp}.xml --packages=./tests/integration/${test_path} -- -tags=integ -timeout 180m"
   
   ISTIO_VERSION=$(oc get istio -A -o jsonpath='{.items[0].spec.version}' 2>/dev/null)
   ISTIO_VERSION_NUM="${ISTIO_VERSION#v}"  
