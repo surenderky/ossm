@@ -114,7 +114,7 @@ echo "  -> Speaker is running ($READY/$DESIRED pods ready)."
 echo "[7/8] Setting up IPAddressPool..."
 
 while :; do
-  echo -e "\n1) 192.168.150.240-192.168.150.245\n2) 192.168.160.240-192.168.160.245\n3) Other"
+  echo -e "\n1) 192.168.150.200-192.168.150.245\n2) 192.168.160.200-192.168.160.245\n3) Other"
   read -p "Choose IP address range option for IPAddressPool [1-3]: " c
   case $c in
     1) ip_range="192.168.150.200-192.168.150.245";;

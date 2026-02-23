@@ -9,16 +9,8 @@ To Run Istio Integration Test Suite
 
 3) Run ./setup_istio_itms_idms.sh to setup images.
 
-4) Run Jenkins downstream-pipeline-3 job to setup Servicemesh with below configuration.
+4) Run Jenkins downstream-pipeline-3 job to setup Servicemesh operator only.
 
-     a) For 3.1.X and older version select INSTALL_OSSM_OPERATORS and INSTALL_ISTIO and run step 6.
+5) Run ./integration-tests.sh and select suite to run with Smoke or Full test.
 
-     b) For 3.2.X and later version select INSTALL_OSSM_OPERATORS only and post job run below script to setup Ambient/Sidecar mode.
-
-	 - For setup Ambient mode run ./ambient_mode_setup.sh and post testing ./remove_ambient_mode.sh 
-
-	 - For setup Sidecar mode run ./sidecar_mode_setup.sh and post testing ./remove_sidecar_mode.sh
-
-6) Run ./integration-tests-suites.sh and select single or ALL to run the desired test suite.
-
-	- Note: Istio test logs will be stored at /root/istio_test_logs and Junit report we be stored at /root/junit_report_istio/istio-integration-tests-suites.
+	- Note: Istio test logs will be stored at /root/logs_istio and Junit report will be stored at /root/artifacts_istio.

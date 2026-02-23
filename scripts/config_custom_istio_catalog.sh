@@ -29,7 +29,7 @@ IMAGE="brew.registry.redhat.io/rh-osbs/iib:$IIB"
 CUSTOM_CATALOG_FILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/custom-catalog-source.yaml"
 
 yq -i '
-  .metadata.name = "RH Custom Istio catalog" |
+  .metadata.name = "custom-istio-catalog" |
   .spec.displayName = "RH Custom Istio catalog" |
   .spec.image = "'$IMAGE'"
 ' "$CUSTOM_CATALOG_FILE"
