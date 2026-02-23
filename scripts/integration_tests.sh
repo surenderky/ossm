@@ -2,6 +2,25 @@
 
 set -euo pipefail
 
+# Check exisiting integ-suite-ocp.sh job
+LOCK_DIR=/tmp/integ-suite-ocp.sh.lock
+PID_FILE="$LOCK_DIR/pid"
+LOCK_OWNED=false
+
+trap 'echo; echo "Interrupted. Exiting."; $LOCK_OWNED && rm -rf "$LOCK_DIR"; exit 130' INT
+trap '$LOCK_OWNED && rm -rf "$LOCK_DIR"' EXIT TERM
+
+if [[ -f "$PID_FILE" ]] && kill -0 -- "$(cat "$PID_FILE")" 2>/dev/null; then
+  echo "Another run is active (PGID $(sed 's/^-//' "$PID_FILE"))"
+  read -rp "Kill running job and continue? (Y/N): " a
+  [[ $a =~ ^[yY]$ ]] || exit 1
+  echo "Killing running job..."
+  kill -- "$(cat "$PID_FILE")"
+  sleep 2
+fi
+
+mkdir "$LOCK_DIR" 2>/dev/null && LOCK_OWNED=true
+
 # Check OpenShift login
 if ! oc whoami &>/dev/null; then
   echo "You are not logged into an OpenShift cluster."
@@ -9,6 +28,16 @@ if ! oc whoami &>/dev/null; then
   exit 1
 fi
 
+# Clean stale Istio CRD's
+echo "Checking for stale Istio CRD's, will delete if found."
+for r in istiorevisions.sailoperator.io istiorevisiontags.sailoperator.io istios.sailoperator.io istiocnis.sailoperator.io ztunnels.sailoperator.io; do
+  oc get crd "$r" &>/dev/null || continue
+  oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete
+  oc wait --for=delete "$r" -A --timeout=5m 2>/dev/null || true
+done
+
+# Check stale projects
+echo "Checking for stale projects, will delete if found."
 mapfile -t EXISTING_PROJECTS < <(oc get projects -o json | jq -r '
   .items[] |
   select(.metadata.annotations["openshift.io/requester"]==null) |
@@ -17,21 +46,10 @@ mapfile -t EXISTING_PROJECTS < <(oc get projects -o json | jq -r '
 ')
 
 if (( ${#EXISTING_PROJECTS[@]} )); then
-  echo "Existing projects:"
+  echo "Deleting existing projects:"
   printf '  - %s\n' "${EXISTING_PROJECTS[@]}"
-  echo
-
-  for p in "${EXISTING_PROJECTS[@]}"; do
-    read -rp "Delete project '$p'? (Y/N): " a
-    [[ $a =~ ^[yY]$ ]] && oc delete project "$p"
-  done
-
-  read -rp "Proceed with testsuite? (Y/N): " p
-  [[ $p =~ ^[yY]$ ]] || exit 1
+  oc delete project "${EXISTING_PROJECTS[@]}"
 fi
-
-mkdir "/tmp/integ-suite-ocp.sh.lock" 2>/dev/null || exit 1
-trap 'rm -rf "/tmp/integ-suite-ocp.sh.lock"' EXIT
 
 # OSSM version
 OSSM_VERSION=$(oc get csv -n openshift-operators \
@@ -48,6 +66,7 @@ FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}'
   -- chroot /host cat /proc/sys/crypto/fips_enabled 2>/dev/null \
   | grep -q '^1$' && echo fips || echo non-fips)
 
+# Config script
 RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GROOVYFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jobs/sail/istio-integration-tests.groovy"
@@ -101,6 +120,8 @@ getIgnoredSuitesForSmoke() {
   ' "$JENKINSFILE"
 }
 
+echo ""
+
 read -rp "Enter ISTIO_VERSION (e.g. v1.27.5): " ISTIO_VERSION
 if [[ -z "$ISTIO_VERSION" ]]; then
   echo "ISTIO_VERSION cannot be empty"
@@ -117,6 +138,11 @@ while true; do
   esac
 done
 
+if [[ "$TEST_PACKAGE" == "ambient" && "$FIPS_MODE" == "fips" ]]; then
+  echo "ERROR: Ambient mode is not supported when FIPS is enabled."
+  exit 1
+fi
+
 TEST_NAME="$(tr '[:lower:]' '[:upper:]' <<<"$TEST_PACKAGE")"
 
 read -rp "Is this a smoke run? (true|false): " IS_SMOKE
@@ -127,6 +153,7 @@ if [[ "$IS_SMOKE" != "true" && "$IS_SMOKE" != "false" ]]; then
   exit 1
 fi
 
+# Execute script
 
 echo "[$TEST_NAME] Test Execution Started At $TS"
 
@@ -159,13 +186,16 @@ go install github.com/jstemmer/go-junit-report/v2@latest
 setsid prow/integ-suite-ocp.sh "$TEST_PACKAGE" "$skip_test" "$skip_suite" "$smoke_test" > "$LOG_FILE" 2>&1 &
 
 PID=$!
+PGID="$(ps -o pgid= "$PID" | tr -d ' ')"
+echo "-$PGID" > "$PID_FILE"
+
 tail -f "$LOG_FILE" &
 TAIL_PID=$!
+
 wait "$PID"
 rc=$?
-set -e
+
 kill "$TAIL_PID" 2>/dev/null || true
 
 echo "[${TEST_NAME}] Test Execution Completed At $TS"
-
 exit $rc

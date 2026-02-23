@@ -6,7 +6,11 @@ To Run Istio Integration Test Suite
 
 3) Run ./setup_istio_itms_idms.sh to setup images.
 
-4) Run Jenkins downstream-pipeline-3(https://jenkins-csb-servicemesh-master.dno.corp.redhat.com/job/main-pipelines/job/downstream-pipeline-3/) job to setup Servicemesh operator only.
+4) Run below Jenkins job to setup Servicemesh operator.
+   a)Add jenkins user - https://jenkins-csb-servicemesh-master.dno.corp.redhat.com/job/infra/job/add-jenkins-user/
+   b)To setup Servicemesh operator - https://jenkins-csb-servicemesh-master.dno.corp.redhat.com/job/main-pipelines/job/downstream-pipeline-3/
+     
+   -  Note please setup using INSTALL_OSSM_OPERATORS only, no istio Control plane.
 
 5) Run ./integration_tests.sh and select Istio version (ex. v1.27.5) and then select suite to run with Smoke or Full test.
 
