@@ -4,7 +4,7 @@ set -euo pipefail
 
 read -p "Enter OSSM version: " OSSM_VERSION
 
-SEARCH_DIR="/root/junit_report_istio/istio-integration-tests-suites"
+SEARCH_DIR="/root/artifacts_istio/"
 DEST_DIR="/root/junit_report_istio/$OSSM_VERSION"
 mkdir -p "$DEST_DIR"
 

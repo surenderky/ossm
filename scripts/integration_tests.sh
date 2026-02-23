@@ -81,6 +81,8 @@ export TEST_HUB="quay.io/maistra"
 export SKIP_SETUP="true"
 export TEST_OUTPUT_FORMAT="junit"
 export AMBIENT="false"
+export IBM="true"
+export INSTALL_METALLB="true"
 
 if [[ "$(uname -m)" == "s390x" ]]; then
     export TAG="ibm-z"
@@ -163,11 +165,11 @@ LOG_FILE="$LOG_DIR/${TEST_PACKAGE}_${TS}.log"
 skip_test="$(extract_param_default "SKIP_TESTS_${TEST_NAME}")"
 
 if [[ "$IS_SMOKE" == "true" ]]; then
-  export ARTIFACT_DIR="/root/artifacts_istio/${TEST_PACKAGE}/${TEST_PACKAGE}_${RELEASE_VERSION}_smoke/${TEST_PACKAGE}_artifacts_${TS}"
+  export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}/${TEST_PACKAGE}_artifacts_${TS}"
   skip_suite="$(getIgnoredSuitesForSmoke "$TEST_PACKAGE")"
   smoke_test="$(getSmokeTests "$TEST_PACKAGE")"
 else
-  export ARTIFACT_DIR="/root/artifacts_istio/${TEST_PACKAGE}/${TEST_PACKAGE}_${RELEASE_VERSION}/${TEST_PACKAGE}_artifacts_${TS}"
+  export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}/${TEST_PACKAGE}/${TEST_PACKAGE}_artifacts_${TS}"
   skip_suite="$(extract_param_default "SKIP_SUITES_${TEST_NAME}")"
   smoke_test=""
 fi

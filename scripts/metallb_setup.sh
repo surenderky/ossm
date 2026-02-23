@@ -132,7 +132,7 @@ cat <<EOF | oc apply -f -
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
-  name: nat
+  name: default
   namespace: metallb-system
 spec:
   addresses:
@@ -141,7 +141,7 @@ spec:
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
-  name: doc-example
+  name: default
   namespace: metallb-system
 EOF
 
