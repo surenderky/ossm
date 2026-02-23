@@ -12,7 +12,7 @@ To Run Istio Integration Test Suite
    
    b)To setup Servicemesh operator - https://jenkins-csb-servicemesh-master.dno.corp.redhat.com/job/main-pipelines/job/downstream-pipeline-3/
      
-   -  Note please setup using INSTALL_OSSM_OPERATORS only, no istio Control plane.
+   -  Note: please setup using INSTALL_OSSM_OPERATORS only, no istio Control plane.
 
 5) Run ./integration_tests.sh and select Istio version (ex. v1.27.5) and then select suite to run with Smoke or Full test.
 
