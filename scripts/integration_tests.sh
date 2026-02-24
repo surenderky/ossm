@@ -130,13 +130,13 @@ getIgnoredSuitesForSmoke() {
 
 echo ""
 
-read -rp "Enter ISTIO CR Version (ex. 1.27.5): " ISTIO_VERSION
+read -rp "Enter ISTIO CR Version (ex. v1.27.5/v1.26.8): " ISTIO_VERSION
 if [[ -z "$ISTIO_VERSION" ]]; then
   echo "ISTIO_VERSION cannot be empty"
   exit 1
 fi
 
-export ISTIO_VERSION="v${ISTIO_VERSION}"
+export ISTIO_VERSION="${ISTIO_VERSION}"
 echo "$ISTIO_VERSION"
 echo ""
 
