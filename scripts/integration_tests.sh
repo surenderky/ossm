@@ -2,24 +2,19 @@
 
 set -euo pipefail
 
-# Check exisiting integ-suite-ocp.sh job
-LOCK_DIR=/tmp/integ-suite-ocp.sh.lock
-PID_FILE="$LOCK_DIR/pid"
-LOCK_OWNED=false
+# Check exisiting job
+PGID=$(ps -eo pgid,cmd | awk '/prow\/integ-suite-ocp.sh/ {print $1; exit}')
 
-trap 'echo; echo "Interrupted. Exiting."; $LOCK_OWNED && rm -rf "$LOCK_DIR"; exit 130' INT
-trap '$LOCK_OWNED && rm -rf "$LOCK_DIR"' EXIT TERM
-
-if [[ -f "$PID_FILE" ]] && kill -0 -- "$(cat "$PID_FILE")" 2>/dev/null; then
-  echo "Another run is active (PGID $(sed 's/^-//' "$PID_FILE"))"
-  read -rp "Kill running job and continue? (Y/N): " a
+if [[ -n "${PGID:-}" ]]; then
+  echo "Another prow run is active (PGID $PGID)"
+  read -rp "Kill it and proceed? (Y/N): " a
   [[ $a =~ ^[yY]$ ]] || exit 1
-  echo "Killing running job..."
-  kill -- "$(cat "$PID_FILE")"
-  sleep 2
-fi
 
-mkdir "$LOCK_DIR" 2>/dev/null && LOCK_OWNED=true
+  echo "Stopping run..."
+  kill -TERM "-$PGID" 2>/dev/null || true
+  sleep 3
+  kill -0 "-$PGID" 2>/dev/null && kill -KILL "-$PGID" 2>/dev/null || true
+fi
 
 # Check OpenShift login
 if ! oc whoami &>/dev/null; then
@@ -28,6 +23,31 @@ if ! oc whoami &>/dev/null; then
   exit 1
 fi
 
+# OCP version
+OCP_VERSION=$(oc get clusterversion version -o jsonpath='{.status.desired.version}' | cut -d. -f1,2)
+
+# OSSM version
+OSSM_VERSION=$(oc get csv -n openshift-operators \
+  --no-headers \
+  -o custom-columns=NAME:.metadata.name,VERSION:.spec.version \
+  | grep servicemeshoperator3 \
+  | awk '{print $2}')
+
+echo ""
+
+if [[ -z "$OSSM_VERSION" ]]; then
+  echo "OSSM is not installed, please install"
+else
+  echo "OSSM installed version: $OSSM_VERSION"
+fi
+
+# FIPS mode
+FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}') \
+  -- chroot /host cat /proc/sys/crypto/fips_enabled 2>/dev/null \
+  | grep -q '^1$' && echo fips || echo non-fips)
+
+echo ""
+
 # Clean stale Istio CRD's
 echo "Checking for stale Istio CRD's, will delete if found."
 for r in istiorevisions.sailoperator.io istiorevisiontags.sailoperator.io istios.sailoperator.io istiocnis.sailoperator.io ztunnels.sailoperator.io; do
@@ -35,6 +55,8 @@ for r in istiorevisions.sailoperator.io istiorevisiontags.sailoperator.io istios
   oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete
   oc wait --for=delete "$r" -A --timeout=5m 2>/dev/null || true
 done
+
+echo ""
 
 # Check stale projects
 echo "Checking for stale projects, will delete if found."
@@ -51,28 +73,12 @@ if (( ${#EXISTING_PROJECTS[@]} )); then
   oc delete project "${EXISTING_PROJECTS[@]}"
 fi
 
-# OSSM version
-OSSM_VERSION=$(oc get csv -n openshift-operators \
-  --no-headers \
-  -o custom-columns=NAME:.metadata.name,VERSION:.spec.version \
-  | grep servicemeshoperator3 \
-  | awk '{print $2}')
-
-# OCP version
-OCP_VERSION=$(oc get clusterversion version -o jsonpath='{.status.desired.version}' | cut -d. -f1,2)
-
-# FIPS mode
-FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}') \
-  -- chroot /host cat /proc/sys/crypto/fips_enabled 2>/dev/null \
-  | grep -q '^1$' && echo fips || echo non-fips)
-
 # Config script
 RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GROOVYFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jobs/sail/istio-integration-tests.groovy"
 JENKINSFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jenkinsfiles/sail/istio-integration-tests.jenkinsfile"
-TS="$(date +"%Y%m%d_%H%M%S")"
-LOG_DIR="/root/logs_istio/${RELEASE_VERSION}"
+TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%H_%M_%S")"
 
 export GOPATH="$(go env GOPATH)"
 export PATH="$PATH:$(go env GOPATH)/bin"
@@ -82,7 +88,7 @@ export SKIP_SETUP="true"
 export TEST_OUTPUT_FORMAT="junit"
 export AMBIENT="false"
 export IBM="true"
-export INSTALL_METALLB="true"
+export INSTALL_METALLB="false"
 
 if [[ "$(uname -m)" == "s390x" ]]; then
     export TAG="ibm-z"
@@ -124,13 +130,15 @@ getIgnoredSuitesForSmoke() {
 
 echo ""
 
-read -rp "Enter ISTIO_VERSION (e.g. v1.27.5): " ISTIO_VERSION
+read -rp "Enter ISTIO CR Version (ex. 1.27.5): " ISTIO_VERSION
 if [[ -z "$ISTIO_VERSION" ]]; then
   echo "ISTIO_VERSION cannot be empty"
   exit 1
 fi
 
-export ISTIO_VERSION="${ISTIO_VERSION}"
+export ISTIO_VERSION="v${ISTIO_VERSION}"
+echo "$ISTIO_VERSION"
+echo ""
 
 while true; do
   read -rp "Enter test package (ambient|pilot|security|telemetry): " TEST_PACKAGE
@@ -140,12 +148,9 @@ while true; do
   esac
 done
 
-if [[ "$TEST_PACKAGE" == "ambient" && "$FIPS_MODE" == "fips" ]]; then
-  echo "ERROR: Ambient mode is not supported when FIPS is enabled."
-  exit 1
-fi
-
 TEST_NAME="$(tr '[:lower:]' '[:upper:]' <<<"$TEST_PACKAGE")"
+
+echo ""
 
 read -rp "Is this a smoke run? (true|false): " IS_SMOKE
 IS_SMOKE="${IS_SMOKE:-false}"
@@ -155,12 +160,27 @@ if [[ "$IS_SMOKE" != "true" && "$IS_SMOKE" != "false" ]]; then
   exit 1
 fi
 
-# Execute script
+cd "$SOURCE_ROOT/istio"
 
-echo "[$TEST_NAME] Test Execution Started At $TS"
+echo ""
 
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/${TEST_PACKAGE}_${TS}.log"
+if [[ "$TEST_PACKAGE" == "pilot" ]]; then
+   echo "Cleaning patch modification for pilot testsuite before new run."
+   	git clean -f
+	git stash
+fi
+
+echo ""
+
+if [[ "$TEST_PACKAGE" == "ambient" && "$FIPS_MODE" == "fips" ]]; then
+  echo "ERROR: Ambient mode is not supported when FIPS is enabled."
+  exit 1
+fi
+
+if [[ "$TEST_PACKAGE" == "ambient" ]]; then
+  export AMBIENT="true"
+  export TRUSTED_ZTUNNEL_NAMESPACE="ztunnel"
+fi
 
 skip_test="$(extract_param_default "SKIP_TESTS_${TEST_NAME}")"
 
@@ -168,36 +188,36 @@ if [[ "$IS_SMOKE" == "true" ]]; then
   export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}/${TEST_PACKAGE}_artifacts_${TS}"
   skip_suite="$(getIgnoredSuitesForSmoke "$TEST_PACKAGE")"
   smoke_test="$(getSmokeTests "$TEST_PACKAGE")"
+  LOG_DIR="/root/logs_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}"
 else
   export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}/${TEST_PACKAGE}/${TEST_PACKAGE}_artifacts_${TS}"
   skip_suite="$(extract_param_default "SKIP_SUITES_${TEST_NAME}")"
   smoke_test=""
+  LOG_DIR="/root/logs_istio/${RELEASE_VERSION}/${TEST_PACKAGE}"
 fi
 
+# Create log file
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/${TEST_PACKAGE}_${TS}.log"
+
+#Create artifacts and junit folder
 mkdir -p "$ARTIFACT_DIR/junit"
 
-if [[ "$TEST_PACKAGE" == "ambient" ]]; then
-  export AMBIENT="true"
-  export TRUSTED_ZTUNNEL_NAMESPACE="ztunnel"
-fi
-
-cd "$SOURCE_ROOT/istio"
-
+# Install go-junit-report
 go install github.com/jstemmer/go-junit-report/v2@latest
+
+# Execute script
+echo "[$TEST_NAME] Test Execution Started"
 
 setsid prow/integ-suite-ocp.sh "$TEST_PACKAGE" "$skip_test" "$skip_suite" "$smoke_test" > "$LOG_FILE" 2>&1 &
 
 PID=$!
-PGID="$(ps -o pgid= "$PID" | tr -d ' ')"
-echo "-$PGID" > "$PID_FILE"
-
 tail -f "$LOG_FILE" &
 TAIL_PID=$!
-
 wait "$PID"
 rc=$?
-
 kill "$TAIL_PID" 2>/dev/null || true
 
-echo "[${TEST_NAME}] Test Execution Completed At $TS"
+echo "[$TEST_NAME] Test Execution Completed"
+
 exit $rc
