@@ -78,7 +78,7 @@ RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GROOVYFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jobs/sail/istio-integration-tests.groovy"
 JENKINSFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jenkinsfiles/sail/istio-integration-tests.jenkinsfile"
-TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%H_%M_%S")"
+TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%I_%M_%P" | tr '[:upper:]' '[:lower:]')"
 
 export GOPATH="$(go env GOPATH)"
 export PATH="$PATH:$(go env GOPATH)/bin"
@@ -137,7 +137,7 @@ if [[ -z "$ISTIO_VERSION" ]]; then
 fi
 
 export ISTIO_VERSION="${ISTIO_VERSION}"
-echo "$ISTIO_VERSION"
+
 echo ""
 
 while true; do
@@ -189,11 +189,13 @@ if [[ "$IS_SMOKE" == "true" ]]; then
   skip_suite="$(getIgnoredSuitesForSmoke "$TEST_PACKAGE")"
   smoke_test="$(getSmokeTests "$TEST_PACKAGE")"
   LOG_DIR="/root/logs_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}"
+  JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}_smoke/"
 else
   export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}/${TEST_PACKAGE}/${TEST_PACKAGE}_artifacts_${TS}"
   skip_suite="$(extract_param_default "SKIP_SUITES_${TEST_NAME}")"
   smoke_test=""
   LOG_DIR="/root/logs_istio/${RELEASE_VERSION}/${TEST_PACKAGE}"
+  JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}/"
 fi
 
 # Create log file
@@ -214,10 +216,23 @@ setsid prow/integ-suite-ocp.sh "$TEST_PACKAGE" "$skip_test" "$skip_suite" "$smok
 PID=$!
 tail -f "$LOG_FILE" &
 TAIL_PID=$!
+set +e
 wait "$PID"
 rc=$?
+set +e
 kill "$TAIL_PID" 2>/dev/null || true
 
+for _ in {1..60}; do
+  [[ -s "$ARTIFACT_DIR/junit/junit.xml" ]] && break
+  sleep 1
+done
+
+echo ""
 echo "[$TEST_NAME] Test Execution Completed"
+echo ""
+mkdir -p "$JUNIT_DIR"
+cp "$ARTIFACT_DIR/junit/junit.xml" "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_PACKAGE}_${TS}.xml"
+$SOURCE_ROOT/generate_test_report.sh "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_PACKAGE}_${TS}.xml"
+echo ""
 
 exit $rc

@@ -14,6 +14,9 @@ Integration Test Suite (Supported from OSSM 3.1+ Versions).
      
    -  Note: please setup using INSTALL_OSSM_OPERATORS only, no istio Control plane.
 
-5) Run ./integration_tests.sh and select Istio version (ex. 1.27.5) and then select suite to run with Smoke or Full test.
+5) Run ./integration_tests.sh and select Istio version (ex. v1.27.5/v1.26.8) and then select testsuite to run with Smoke or Full test.
 
-   - Note: Istio test logs will be stored at /root/logs_istio and Junit report will be stored at /root/artifacts_istio.
+   - Note:
+     - Logs stored at /root/logs_istio
+     - Artifacts stored at /root/artifacts_istio
+     - Junit report stored at /root/junit_istio

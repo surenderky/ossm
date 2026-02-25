@@ -43,3 +43,14 @@ PASS=$((TOTAL - FAIL - SKIP))
 
 echo
 echo "TOTAL  tests=\"$TOTAL\" failures=\"$FAIL\" skipped=\"$SKIP\" passed=\"$PASS\""
+
+# -------- Failed test names (from embedded logs) --------
+echo
+
+if grep -q '=== DONE (failed):' "$JUNIT_FILE"; then
+  echo "FAILED TESTS:"
+  grep '=== DONE (failed):' "$JUNIT_FILE" \
+  | sed -n "s/.*Test: '\([^']*\) (.*/\1/p" \
+  | sort -u \
+  | sed 's/^/  - /'
+fi
