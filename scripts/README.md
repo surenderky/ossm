@@ -14,7 +14,11 @@ Integration Test Suite (Supported from OSSM 3.1+ Versions).
      
    -  Note: please setup using INSTALL_OSSM_OPERATORS only, no istio Control plane.
 
-5) Run ./integration_tests.sh and select Istio version (ex. v1.27.5/v1.26.8) and then select testsuite to run with Smoke or Full test.
+5) In case we need to skip additonal test then we can add them to ibm_istio_skip_test.json file.
+  
+   - Ex:- "pilot": "|TestTunnelingOutboundTraffic",
+
+6) Run ./integration_tests.sh and select Istio version (ex. v1.27.5/v1.26.8) and then select testsuite to run with Smoke or Full test.
 
    - Note:
      - Logs stored at /root/logs_istio
