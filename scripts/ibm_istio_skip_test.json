@@ -1,0 +1,28 @@
+{
+  "3.1": {
+    "s390x": {
+      "pilot": "",
+      "security": "",
+      "telemetry": ""
+    },
+    "ppc64le": {
+      "pilot": "",
+      "security": "",
+      "telemetry": ""
+    }
+  },
+  "3.2": {
+    "s390x": {
+      "ambient": "",
+      "pilot": "",
+      "security": "",
+      "telemetry": ""
+    },
+    "ppc64le": {
+      "ambient": "",
+      "pilot": "",
+      "security": "",
+      "telemetry": ""
+    }
+  }
+}

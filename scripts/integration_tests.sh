@@ -37,9 +37,12 @@ echo ""
 
 if [[ -z "$OSSM_VERSION" ]]; then
   echo "OSSM is not installed, please install"
-else
-  echo "OSSM installed version: $OSSM_VERSION"
+  exit 1
 fi
+
+printf '%s\n' 3.1 "$OSSM_VERSION" | sort -V -C || { echo "ERROR: OSSM >=3.1 required"; exit 1; }
+
+echo "OSSM installed version: $OSSM_VERSION"
 
 # FIPS mode
 FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}') \
@@ -49,7 +52,7 @@ FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}'
 echo ""
 
 # Clean stale Istio CRD's
-echo "Checking for stale Istio CRD's, will delete if found."
+echo "Cleaning stale Istio CRD's..."
 for r in istiorevisions.sailoperator.io istiorevisiontags.sailoperator.io istios.sailoperator.io istiocnis.sailoperator.io ztunnels.sailoperator.io; do
   oc get crd "$r" &>/dev/null || continue
   oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete
@@ -59,7 +62,7 @@ done
 echo ""
 
 # Check stale projects
-echo "Checking for stale projects, will delete if found."
+echo "Cleaning stale Istio projects..."
 mapfile -t EXISTING_PROJECTS < <(oc get projects -o json | jq -r '
   .items[] |
   select(.metadata.annotations["openshift.io/requester"]==null) |
@@ -139,13 +142,10 @@ fi
 export ISTIO_VERSION="${ISTIO_VERSION}"
 
 echo ""
-
-while true; do
-  read -rp "Enter test package (ambient|pilot|security|telemetry): " TEST_PACKAGE
-  case "$TEST_PACKAGE" in
-    ambient|pilot|security|telemetry) break ;;
-    *) echo "Invalid input. Please enter a valid test package." ;;
-  esac
+ALLOWED=$(printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C && echo "ambient|pilot|security|telemetry" || echo "pilot|security|telemetry")
+while read -rp "Enter test package ($ALLOWED): " TEST_PACKAGE; do
+  [[ "$ALLOWED" == *"$TEST_PACKAGE"* ]] && break
+  echo "Invalid package. Allowed: $ALLOWED"
 done
 
 TEST_NAME="$(tr '[:lower:]' '[:upper:]' <<<"$TEST_PACKAGE")"
@@ -183,6 +183,20 @@ if [[ "$TEST_PACKAGE" == "ambient" ]]; then
 fi
 
 skip_test="$(extract_param_default "SKIP_TESTS_${TEST_NAME}")"
+skip_key="$(echo "$OSSM_VERSION" | awk -F. '{print $1 "." $2}')"
+
+ibm_skip_test="$(
+  jq -r \
+    --arg v "$skip_key" \
+    --arg a "$(uname -m)" \
+    --arg p "$TEST_PACKAGE" \
+    '.[$v][$a][$p] // empty' \
+    "$SOURCE_ROOT/ibm_istio_skip_test.json"
+)"
+
+if [[ -n "$ibm_skip_test" ]]; then
+  skip_test="${skip_test}${ibm_skip_test}"
+fi
 
 if [[ "$IS_SMOKE" == "true" ]]; then
   export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}/${TEST_PACKAGE}_artifacts_${TS}"
