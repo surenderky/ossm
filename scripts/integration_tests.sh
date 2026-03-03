@@ -85,6 +85,7 @@ GROOVYFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jobs/sail/istio-integrati
 JENKINSFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jenkinsfiles/sail/istio-integration-tests.jenkinsfile"
 TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%I_%M_%P" | tr '[:upper:]' '[:lower:]')"
 OVERRIDE_SKIP_TESTS="false"
+IBM_SKIP="true"
 
 export GOPATH="$(go env GOPATH)"
 export PATH="$PATH:$(go env GOPATH)/bin"
@@ -168,7 +169,7 @@ else
      eval "$(./parse-test-config.sh config.yaml "$TEST_PACKAGE" downstream "$TEST_REPO_BRANCH")"
 fi
 
-if [[ "$IS_SMOKE" == "full" ]]; then
+if [[ "$IS_SMOKE" == "full" && "$IBM_SKIP" == "true" ]]; then
 
 skip_json="$SOURCE_ROOT/ibm_skip_istio_test.json"
 skip_key="$(echo "$OSSM_VERSION" | awk -F. '{print $1 "." $2}')"
@@ -181,7 +182,7 @@ ibm_skip_test=$(jq -r \
   "$skip_json")
 
 if [[ -n "$ibm_skip_test" ]]; then
-  SKIP_PARSER_SKIP_TESTS="${ibm_skip_test}"
+  SKIP_PARSER_SKIP_TESTS="${SKIP_PARSER_SKIP_TESTS}${ibm_skip_test}"
 fi
 
 ibm_skip_subsuite=$(jq -r \
