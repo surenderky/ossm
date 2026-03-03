@@ -4,9 +4,9 @@ set -euo pipefail
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SOURCE_ROOT"
 
-ISTIO_REPO=git@github.com:mkralik3/istio-ossm.git
+ISTIO_REPO=git@github.com:openshift-service-mesh/istio.git
 ISTIO_DIR=istio
-ISTIO_GIT_BRANCH="ibm"
+read -rp "Enter ISTIO_GIT_BRANCH (ex. release-1.27): " ISTIO_GIT_BRANCH
 ISTIO_FRESH_CLONE=false
 
 CSB_REPO=git@gitlab.cee.redhat.com:istio/servicemesh-qe/jenkins-csb-declaration.git

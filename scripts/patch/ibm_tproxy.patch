@@ -1,0 +1,15 @@
+diff --git a/prow/integ-suite-ocp.sh b/prow/integ-suite-ocp.sh
+index 3b454e6dcb..c6aaea71b5 100755
+--- a/prow/integ-suite-ocp.sh
++++ b/prow/integ-suite-ocp.sh
+@@ -234,6 +234,10 @@ base_cmd=(
+ 
+ helm_values="global.platform=openshift"
+ 
++if [ "${IBM}" == "true" ]; then
++    base_cmd+=("--istio.test.skipTProxy=true")
++fi
++
+ # Gateway Conformance Test related modifications
+ if [ "${TEST_SUITE}" == "pilot" ]; then
+     # Until OCP 4.19 default CRDs has https://github.com/kubernetes-sigs/gateway-api/pull/3389 we need following patch
