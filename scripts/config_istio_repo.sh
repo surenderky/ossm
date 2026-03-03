@@ -17,7 +17,6 @@ if [[ ! -d "$ISTIO_DIR/.git" ]]; then
   git clone "$ISTIO_REPO" "$ISTIO_DIR"
   cd "$ISTIO_DIR"
   git checkout "$ISTIO_GIT_BRANCH" 2>/dev/null || true
-  git apply $SOURCE_ROOT/patch/ibm_tproxy.patch
   ISTIO_FRESH_CLONE=true
 else
   echo "Updating Istio..."
