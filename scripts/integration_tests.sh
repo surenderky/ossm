@@ -163,12 +163,7 @@ eval "$(./parse-test-config.sh config.yaml "$TEST_PACKAGE" downstream "$TEST_REP
 
 if [[ "$IS_SMOKE" == "full" && "$IBM_SKIP" == "true" ]]; then
 
-if [[ $(uname -m) == "s390x" ]]; then
-skip_json="$SOURCE_ROOT/ibm_z_skip_istio_test.json"
-else
-skip_json="$SOURCE_ROOT/ibm_p_skip_istio_test.json"
-fi
-
+skip_json="$SOURCE_ROOT/ibm_skip_istio_test.json"
 skip_key="$(echo "$OSSM_VERSION" | awk -F. '{print $1 "." $2}')"
 
 ibm_skip_test=$(jq -r \
