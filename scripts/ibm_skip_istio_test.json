@@ -32,11 +32,11 @@
   "3.2": {
     "s390x": {
       "ambient": {
-	      "skip_test": "",
+	    "skip_test": "",
         "skip_subsuite": ""
       },
       "pilot": {
-	      "skip_test": "",
+	    "skip_test": "",
         "skip_subsuite": ""
       },
       "security": {
@@ -83,7 +83,7 @@
       },
       "telemetry": {
         "skip_test": "",
-	      "skip_subsuite": ""
+	    "skip_subsuite": ""
       }
     },
     "ppc64le": {
