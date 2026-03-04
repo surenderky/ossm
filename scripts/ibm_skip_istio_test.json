@@ -11,7 +11,7 @@
       },
       "telemetry": {
         "skip_test": "",
-        "skip_subsuite": "tracing/otelcollector|tracing/zipkin"
+        "skip_subsuite": ""
       }
     },
     "ppc64le": {
@@ -32,11 +32,11 @@
   "3.2": {
     "s390x": {
       "ambient": {
-        "skip_test": "|TestCustomizeMetrics|TestL7Telemetry/from_\"captured\"_to_\"service-addressed-waypoint\"|TestL7Telemetry|TestServiceDynamicEnroll/from-1|TestServiceDynamicEnroll",
+        "skip_test": "",
         "skip_subsuite": ""
       },
       "pilot": {
-        "skip_test": "|TestGateway/managed|TestGateway/unmanaged|TestGatewayConformance|TestGateway|TestTunnelingOutboundTraffic|TestInferencePoolMultipleTargetPorts",
+        "skip_test": "",
         "skip_subsuite": ""
       },
       "security": {
@@ -45,7 +45,7 @@
       },
       "telemetry": {
         "skip_test": "",
-        "skip_subsuite": "tracing/otelcollector|tracing/zipkin"
+        "skip_subsuite": ""
       }
     },
     "ppc64le": {
