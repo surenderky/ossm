@@ -84,7 +84,6 @@ SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GROOVYFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jobs/sail/istio-integration-tests.groovy"
 JENKINSFILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/jenkinsfiles/sail/istio-integration-tests.jenkinsfile"
 TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%I_%M_%P" | tr '[:upper:]' '[:lower:]')"
-OVERRIDE_SKIP_TESTS="false"
 IBM_SKIP="true"
 
 export GOPATH="$(go env GOPATH)"
@@ -157,21 +156,19 @@ else
      JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}/"
 fi
 
-if [ "${OVERRIDE_SKIP_TESTS}" = "true" ]; then
-     export SKIP_PARSER_SUITE="${TEST_PACKAGE}"
-     export SKIP_PARSER_SKIP_TESTS=""
-     export SKIP_PARSER_SKIP_SUBSUITES=""
-     export SKIP_PARSER_RUN_TESTS_ONLY=""
-else
-     curl -o config.yaml https://raw.githubusercontent.com/mkralik3/ci-utils/refs/heads/skiptests/skip_tests/"${TEST_FILE_NAME}"
-     curl -O https://raw.githubusercontent.com/mkralik3/ci-utils/refs/heads/skiptests/skip_tests/parse-test-config.sh
-     chmod +x ./parse-test-config.sh
-     eval "$(./parse-test-config.sh config.yaml "$TEST_PACKAGE" downstream "$TEST_REPO_BRANCH")"
-fi
+curl -o config.yaml https://raw.githubusercontent.com/mkralik3/ci-utils/refs/heads/skiptests/skip_tests/"${TEST_FILE_NAME}"
+curl -O https://raw.githubusercontent.com/mkralik3/ci-utils/refs/heads/skiptests/skip_tests/parse-test-config.sh
+chmod +x ./parse-test-config.sh
+eval "$(./parse-test-config.sh config.yaml "$TEST_PACKAGE" downstream "$TEST_REPO_BRANCH")"
 
 if [[ "$IS_SMOKE" == "full" && "$IBM_SKIP" == "true" ]]; then
 
-skip_json="$SOURCE_ROOT/ibm_skip_istio_test.json"
+if [[ $(uname -m) == "s390x" ]]; then
+skip_json="$SOURCE_ROOT/ibm_z_skip_istio_test.json"
+else
+skip_json="$SOURCE_ROOT/ibm_p_skip_istio_test.json"
+fi
+
 skip_key="$(echo "$OSSM_VERSION" | awk -F. '{print $1 "." $2}')"
 
 ibm_skip_test=$(jq -r \
