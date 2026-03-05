@@ -52,6 +52,32 @@ FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}'
   -- chroot /host cat /proc/sys/crypto/fips_enabled 2>/dev/null \
   | grep -q '^1$' && echo fips || echo non-fips)
 
+# Clean stale Istio CRD's
+echo "Cleaning stale Istio CRD's..."
+for r in istiorevisions.sailoperator.io istiorevisiontags.sailoperator.io istios.sailoperator.io istiocnis.sailoperator.io ztunnels.sailoperator.io; do
+  oc get crd "$r" &>/dev/null || continue
+  oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete
+  oc wait --for=delete "$r" -A --timeout=5m 2>/dev/null || true
+done
+echo ""
+
+# Check stale projects
+echo "Cleaning stale Istio projects..."
+mapfile -t EXISTING_PROJECTS < <(oc get projects -o json | jq -r '
+  .items[] |
+  select(.metadata.annotations["openshift.io/requester"]==null) |
+  select(.metadata.name|test("^(openshift|kube|default|metallb|node-vertical)")|not) |
+  .metadata.name
+')
+echo ""
+
+if (( ${#EXISTING_PROJECTS[@]} )); then
+  echo "Deleting existing projects:"
+  printf '  - %s\n' "${EXISTING_PROJECTS[@]}"
+  oc delete project "${EXISTING_PROJECTS[@]}"
+  echo ""
+fi
+
 # Config script
 RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -96,51 +122,13 @@ export ISTIO_VERSION="${ISTIO_VERSION}"
 TEST_REPO_BRANCH="release-$(echo "$ISTIO_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+).*/\1/')"
 
 ALLOWED=$(printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C && echo "ambient|pilot|security|telemetry" || echo "pilot|security|telemetry")
-
-while read -rp "Enter test package ($ALLOWED|all): " PACKAGE; do
-  if [[ "$PACKAGE" == "all" ]]; then
-    PACKAGE="$ALLOWED"
-    break
-  elif [[ "$ALLOWED" == *"$PACKAGE"* ]]; then
-    break
-  else
-    echo "Invalid package. Allowed: $ALLOWED or all"
-  fi
+while read -rp "Enter test package ($ALLOWED): " TEST_PACKAGE; do
+  [[ "$ALLOWED" == *"$TEST_PACKAGE"* ]] && break
+  echo "Invalid package. Allowed: $ALLOWED"
 done
 echo ""
 
-cd $SOURCE_ROOT/istio
-
-FINAL_RC=0
-IFS="|" read -ra PKGS <<< "$PACKAGE"
-
-for TEST_PACKAGE in "${PKGS[@]}"; do
-
-# Clean stale Istio CRD's
-echo "Cleaning stale Istio CRD's..."
-for r in istiorevisions.sailoperator.io istiorevisiontags.sailoperator.io istios.sailoperator.io istiocnis.sailoperator.io ztunnels.sailoperator.io; do
-  oc get crd "$r" &>/dev/null || continue
-  oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete
-  oc wait --for=delete "$r" -A --timeout=5m 2>/dev/null || true
-done
-echo ""
-
-# Check stale projects
-echo "Cleaning stale Istio projects..."
-mapfile -t EXISTING_PROJECTS < <(oc get projects -o json | jq -r '
-  .items[] |
-  select(.metadata.annotations["openshift.io/requester"]==null) |
-  select(.metadata.name|test("^(openshift|kube|default|metallb|node-vertical)")|not) |
-  .metadata.name
-')
-echo ""
-
-if (( ${#EXISTING_PROJECTS[@]} )); then
-  echo "Deleting existing projects:"
-  printf '  - %s\n' "${EXISTING_PROJECTS[@]}"
-  oc delete project "${EXISTING_PROJECTS[@]}"
-  echo ""
-fi
+cd "$SOURCE_ROOT/istio"
 
 git clean -f
 git stash
@@ -168,8 +156,9 @@ else
      JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}/"
 fi
 
-curl -o config.yaml https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/main/skip_tests/"${TEST_FILE_NAME}"
-curl -O https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/main/skip_tests/parse-test-config.sh
+
+curl -o config.yaml https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/skiptests/skip_tests/${TEST_FILE_NAME}"
+curl -O https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/main/skip_tests/parse-test-config.sh
 
 chmod +x ./parse-test-config.sh
 
@@ -214,6 +203,32 @@ mkdir -p "$ARTIFACT_DIR/junit"
 # Install go-junit-report
 go install github.com/jstemmer/go-junit-report/v2@latest
 
+# Clean stale Istio CRD's
+echo "Cleaning stale Istio CRD's..."
+for r in istiorevisions.sailoperator.io istiorevisiontags.sailoperator.io istios.sailoperator.io istiocnis.sailoperator.io ztunnels.sailoperator.io; do
+  oc get crd "$r" &>/dev/null || continue
+  oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete
+  oc wait --for=delete "$r" -A --timeout=5m 2>/dev/null || true
+done
+echo ""
+
+# Check stale projects
+echo "Cleaning stale Istio projects..."
+mapfile -t EXISTING_PROJECTS < <(oc get projects -o json | jq -r '
+  .items[] |
+  select(.metadata.annotations["openshift.io/requester"]==null) |
+  select(.metadata.name|test("^(openshift|kube|default|metallb|node-vertical)")|not) |
+  .metadata.name
+')
+echo ""
+
+if (( ${#EXISTING_PROJECTS[@]} )); then
+  echo "Deleting existing projects:"
+  printf '  - %s\n' "${EXISTING_PROJECTS[@]}"
+  oc delete project "${EXISTING_PROJECTS[@]}"
+  echo ""
+fi
+
 # Execute script
 echo ""
 echo "[$TEST_PACKAGE] Test Execution Started"
@@ -236,29 +251,11 @@ for _ in {1..60}; do
 done
 
 echo ""
-echo "--------------------------------------------------------------------"
 echo "[$TEST_PACKAGE] Test Execution Completed"
-echo "--------------------------------------------------------------------"
 echo ""
 mkdir -p "$JUNIT_DIR"
 cp "$ARTIFACT_DIR/junit/junit.xml" "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_PACKAGE}_${TS}.xml"
-
-sleep 10
-
-((rc!=0)) && FINAL_RC=1
-
-done
-
-for TEST_PACKAGE in "${PKGS[@]}"; do
-echo "--------------------------------------------------------------------"
-echo "[$TEST_PACKAGE] Test Result"
-echo "--------------------------------------------------------------------"
-echo ""
 $SOURCE_ROOT/generate_test_report.sh "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_PACKAGE}_${TS}.xml"
-done
+echo ""
 
-echo "--------------------------------------------------------------------"
-
-sleep 10
-
-exit $FINAL_RC
+exit $rc
