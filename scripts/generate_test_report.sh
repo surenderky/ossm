@@ -18,31 +18,34 @@ xmllint --xpath '//testsuite' "$JUNIT_FILE" \
 | sed 's/></>\n</g' \
 | awk '
   /<testsuite/ {
-    name=""; tests="0"; failures="0"; skipped="0"
+    name=""; tests="0"; failures="0"; skipped="0"; errors="0"
 
     if (match($0, /name="([^"]+)"/, m))      name=m[1]
     if (match($0, /tests="([^"]+)"/, m))     tests=m[1]
     if (match($0, /failures="([^"]+)"/, m))  failures=m[1]
     if (match($0, /skipped="([^"]+)"/, m))   skipped=m[1]
+    if (match($0, /errors="([^"]+)"/, m))    errors=m[1]
 
     # hide suites with zero tests
     if (tests == "0") next
 
     sub(".*/tests/integration/", "", name)
 
-    printf "%s  tests=\"%s\" failures=\"%s\" skipped=\"%s\"\n",
-           name, tests, failures, skipped
+    printf "%s  tests=\"%s\" failures=\"%s\" errors=\"%s\" skipped=\"%s\"\n",
+           name, tests, failures, errors, skipped
   }
 '
 
 # -------- Totals --------
 TOTAL=$(xmllint --xpath 'sum(//testsuite/@tests)' "$JUNIT_FILE")
 FAIL=$(xmllint --xpath 'sum(//testsuite/@failures)' "$JUNIT_FILE")
+ERROR=$(xmllint --xpath 'sum(//testsuite/@errors)' "$JUNIT_FILE")
 SKIP=$(xmllint --xpath 'sum(//testsuite/@skipped)' "$JUNIT_FILE")
-PASS=$((TOTAL - FAIL - SKIP))
+
+PASS=$((TOTAL - FAIL - ERROR - SKIP))
 
 echo
-echo "TOTAL  tests=\"$TOTAL\" failures=\"$FAIL\" skipped=\"$SKIP\" passed=\"$PASS\""
+echo "TOTAL  tests=\"$TOTAL\" failures=\"$FAIL\" errors=\"$ERROR\" skipped=\"$SKIP\" passed=\"$PASS\""
 
 # -------- Failed test names (from embedded logs) --------
 echo
