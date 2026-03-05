@@ -19,9 +19,9 @@ For OSSM 3.1.0 and later Versions.
 
 6) Run ./integration_tests.sh then
 
-   a) Select testsuite to run with Smoke or Full 
-   b) Select Istio version (ex. v1.27.5/v1.26.8) 
-   c) Select all or single testsuite(ambient|pilot|security|telemetry).
+   a) Select testsuite to run with Smoke or Full.
+   b) Select Istio version (ex. v1.27.5/v1.26.8).
+   c) Select All or single testsuite(ambient|pilot|security|telemetry).
 
    - Note:
      - Logs stored at /root/logs_istio
