@@ -144,7 +144,6 @@ fi
 
 git clean -f
 git stash
-git apply $SOURCE_ROOT/patch/ibm_tproxy.patch
 
 if [[ "$TEST_PACKAGE" == "ambient" && "$FIPS_MODE" == "fips" ]]; then
   echo "ERROR: Ambient mode is not supported when FIPS is enabled."
