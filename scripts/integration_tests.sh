@@ -146,8 +146,26 @@ git clean -f
 git stash
 
 if [[ "$TEST_PACKAGE" == "ambient" && "$FIPS_MODE" == "fips" ]]; then
-  echo "ERROR: Ambient mode is not supported when FIPS is enabled."
-  exit 1
+echo "Ambient mode is currently not working properly when FIPS is enabled."
+   while true; do
+      read -rp "Do you want to run or skip ambient? (run/skip): " CHOICE
+      case "$CHOICE" in
+        run)
+          echo "Proceeding with Ambient test package"
+          echo ""
+          break
+          ;;
+        skip)
+          echo "Skipping Ambient test package"
+          echo ""
+          continue 2
+          ;;
+        *)
+          echo "Invalid input. Please enter 'run' or 'skip'."
+          echo ""
+          ;;
+      esac
+   done
 fi
 
 if [[ "$TEST_PACKAGE" == "ambient" ]]; then
