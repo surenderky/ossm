@@ -16,7 +16,7 @@ For OSSM 3.1.0 and later Versions.
 
    - Note: please setup using INSTALL_OSSM_OPERATORS only, no istio Control plane.
 
-6) In case we need to skip additonal test then make sure to set IBM_SKIP="true" then we can copy sample/ibm_skip_istio_test.json file to /root/ and add skip respective test/subsuite to it.
+6) In case we need to skip additonal test then make sure to set IBM_SKIP="true" then we can copy sample/ibm_skip_istio_test.json file to /root/ and add skip respective test.
 
 7) Run ./integration_tests.sh then
 
@@ -24,7 +24,7 @@ For OSSM 3.1.0 and later Versions.
    
    b) Select Istio version (ex. v1.27.5/v1.26.8).
    
-   c) Select All or single testsuite(ambient|pilot|security|telemetry).
+   c) Select All or single test suite/subsuite.
 
    - Note:
      - Logs stored at /root/logs_istio

@@ -13,7 +13,6 @@ fi
 echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
-
 # Step 0: Check and delete existing MetalLB Operator Subscription if it exists
 echo "[0/8] Checking if MetalLB Operator is already installed..."
 if oc get subscription -n metallb-system metallb >/dev/null 2>&1; then
@@ -110,23 +109,29 @@ while true; do
 done
 echo "  -> Speaker is running ($READY/$DESIRED pods ready)."
 
-# Step 7: Prompt for IP address range
 echo "[7/8] Setting up IPAddressPool..."
 
-while :; do
-  echo -e "\n1) 192.168.150.200-192.168.150.245\n2) 192.168.160.200-192.168.160.245\n3) Other"
-  read -p "Choose IP address range option for IPAddressPool [1-3]: " c
-  case $c in
-    1) ip_range="192.168.150.200-192.168.150.245";;
-    2) ip_range="192.168.160.200-192.168.160.245";;
-    3) read -p "Enter IP range: " ip_range;;
-    *) echo "Invalid, try again."; continue;;
-  esac
-  [[ -z "$ip_range" ]] && { echo "Empty range, try again."; continue; }
-  read -p "Confirm '$ip_range'? (y/n): " ok
-  [[ $ok == [Yy] ]] && break
-done
-echo "Selected: $ip_range"
+CURRENT_CLUSTER="$(oc whoami --show-server)"
+CURRENT_CLUSTER="$(echo "$CURRENT_CLUSTER" | awk -F'[.:]' '{print $3}')"
+
+if [[ "$CURRENT_CLUSTER" == "ocpz1-l4c" || "$CURRENT_CLUSTER" == "ocpz1-l23" ]]; then
+  ip_range="192.168.150.200-192.168.150.245"
+
+elif [[ "$CURRENT_CLUSTER" == "ocpz2-l4c" || "$CURRENT_CLUSTER" == "ocpz2-l23" ]]; then
+  ip_range="192.168.160.200-192.168.160.245"
+
+else
+  while :; do
+    read -p "Enter IP range: " ip_range
+    [[ -z "$ip_range" ]] && { echo "Empty range, try again."; continue; }
+    read -p "Confirm '$ip_range'? (Y/N): " ok
+    [[ $ok == [Yy] ]] && break
+  done
+fi
+
+sleep 10
+
+echo "Configuring IP Range: $ip_range"
 
 cat <<EOF | oc apply -f -
 apiVersion: metallb.io/v1beta1
@@ -145,5 +150,5 @@ metadata:
   namespace: metallb-system
 EOF
 
-echo "[8/8] MetalLB is fully configured with IP range: $ip_range"
+echo "[8/8] MetalLB is fully configured"
 
