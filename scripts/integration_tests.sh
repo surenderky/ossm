@@ -63,7 +63,7 @@ export TEST_HUB="quay.io/maistra"
 export SKIP_SETUP="true"
 export TEST_OUTPUT_FORMAT="junit"
 export AMBIENT="false"
-export OVERRIDE_SKIP_TESTS="false"
+export OVERRIDE_SKIP_TESTS="$1"
 export IBM="true"
 export INSTALL_METALLB="false"
 
@@ -174,12 +174,14 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
    git clean -f
    git stash
 
-
-   if [[ "$TEST_PACKAGE" == *"ambient"* ]]; then
-     export AMBIENT="true"
-     export TRUSTED_ZTUNNEL_NAMESPACE="ztunnel"
-   fi
-
+   if [ "${OVERRIDE_SKIP_TESTS}" = "run_test" ]; then
+      read -rp "Enter TEST PACKAGE: " TEST_PACKAGE
+      SKIP_PARSER_SUITE="${TEST_PACKAGE}"
+      SKIP_PARSER_SKIP_TESTS=""
+      SKIP_PARSER_SKIP_SUBSUITES=""
+      read -rp "Enter TEST NAME: " RUN_TEST_ONLY
+      SKIP_PARSER_RUN_TESTS_ONLY="${RUN_TEST_ONLY}"
+   else
    if [[ "$IS_SMOKE" == "smoke" ]]; then
      TEST_FILE_NAME="test-config-smoke.yaml"
      export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
@@ -190,6 +192,7 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
      export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
      LOG_DIR="/root/logs_istio/${RELEASE_VERSION}/${TEST_PACKAGE}"
      JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}/"
+   fi
    fi
 
    curl -o config.yaml https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/main/skip_tests/"${TEST_FILE_NAME}"
@@ -226,10 +229,15 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
    fi
 
    fi
+   
+   if [[ "$TEST_PACKAGE" == *"ambient"* ]]; then
+     export AMBIENT="true"
+     export TRUSTED_ZTUNNEL_NAMESPACE="ztunnel"
+   fi
 
    # Create log file
    mkdir -p "$LOG_DIR"
-   LOG_FILE="$LOG_DIR/${TEST_PACKAGE}/${TEST_NAME}_${TS}.log"
+   LOG_FILE="$LOG_DIR/${TEST_NAME}_${TS}.log"
 
    #Create artifacts and junit folder
    mkdir -p "$ARTIFACT_DIR/junit"
@@ -290,7 +298,7 @@ echo "[$TEST_PACKAGE] Test Result"
 echo "--------------------------------------------------------------------"
 echo ""
 $SOURCE_ROOT/generate_test_report.sh "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_NAME}_${TS}.xml"
-
+fi
 echo "--------------------------------------------------------------------"
 
 sleep 10
