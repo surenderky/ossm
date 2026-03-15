@@ -260,7 +260,7 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
    echo "[$TEST_PACKAGE] Test Execution Started"
    echo ""
 
-#   setsid prow/integ-suite-ocp.sh "${SKIP_PARSER_SUITE}" "${SKIP_PARSER_SKIP_TESTS}" "${SKIP_PARSER_SKIP_SUBSUITES}" "${SKIP_PARSER_RUN_TESTS_ONLY}" > "$LOG_FILE" 2>&1 &
+   setsid prow/integ-suite-ocp.sh "${SKIP_PARSER_SUITE}" "${SKIP_PARSER_SKIP_TESTS}" "${SKIP_PARSER_SKIP_SUBSUITES}" "${SKIP_PARSER_RUN_TESTS_ONLY}" > "$LOG_FILE" 2>&1 &
 
    PID=$!
    tail -f "$LOG_FILE" &
