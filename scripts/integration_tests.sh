@@ -108,7 +108,7 @@ else
     if [[ "$IS_SMOKE" == "smoke" ]]; then
       read -rp "Enter package ($ALLOWED): " PACKAGE
     else
-      read -rp "Enter package $ALLOWED or sub-package(ex: security/pqc): " PACKAGE
+      read -rp "Enter package ($ALLOWED) or sub-package(ex: security/pqc): " PACKAGE
     fi
 
     ROOT="${PACKAGE%%/*}"
