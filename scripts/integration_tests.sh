@@ -63,22 +63,13 @@ export TEST_HUB="quay.io/maistra"
 export SKIP_SETUP="true"
 export TEST_OUTPUT_FORMAT="junit"
 export AMBIENT="false"
-export OVERRIDE_SKIP_TESTS="$1"
-export IBM="true"
+export IBM="${1:-}"
 export INSTALL_METALLB="false"
 
 if [[ "$(uname -m)" == "s390x" ]]; then
     export TAG="ibm-z"
 else
     export TAG="ibm-p"
-fi
-
-read -rp "Is this a smoke or full run? (smoke|full): " IS_SMOKE
-echo ""
-if [[ "$IS_SMOKE" != "smoke" && "$IS_SMOKE" != "full" ]]; then
-  echo "IS_SMOKE must be smoke or full"
-  echo ""
-  exit 1
 fi
 
 read -rp "Enter ISTIO CR Version (ex. v1.28.4): " ISTIO_VERSION
@@ -91,6 +82,22 @@ fi
 
 export ISTIO_VERSION="${ISTIO_VERSION}"
 TEST_REPO_BRANCH="release-$(echo "$ISTIO_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+).*/\1/')"
+
+read -rp "Is this a smoke or full or single_test run? (smoke|full|single_test): " TEST_TYPE
+echo ""
+if [[ "$TEST_TYPE" != "smoke" && "$TEST_TYPE" != "full" && "$TEST_TYPE" != "single_test" ]]; then
+  echo "Test type must be smoke or full or single_test "
+  echo ""
+  exit 1
+fi
+
+if [ "${TEST_TYPE}" = "single_test" ]; then
+     read -rp "Enter Package: " TEST_PACKAGE
+     PACKAGE=$TEST_PACKAGE
+     #read -rp "Enter Tests to skip: " SKIP_TESTS
+     read -rp "Enter Sub-package to skip: " SKIP_SUBSUITES
+     read -rp "Enter Test Name: " RUN_TEST_ONLY
+else
 
 ALLOWED=$(printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C && \
 echo "ambient|pilot|security|telemetry" || echo "pilot|security|telemetry")
@@ -105,10 +112,10 @@ if [[ "$RUN_ALL" =~ ^[Yy]$ ]]; then
 else
   while true; do
 
-    if [[ "$IS_SMOKE" == "smoke" ]]; then
-      read -rp "Enter package ($ALLOWED): " PACKAGE
+    if [[ "$TEST_TYPE" == "smoke" ]]; then
+      read -rp "Enter Package ($ALLOWED): " PACKAGE
     else
-      read -rp "Enter package ($ALLOWED) or sub-package(ex: security/pqc): " PACKAGE
+      read -rp "Enter Package ($ALLOWED) or Sub-package(ex: security/pqc): " PACKAGE
     fi
 
     ROOT="${PACKAGE%%/*}"
@@ -124,7 +131,7 @@ else
       continue
     fi
 
-    if [[ "$IS_SMOKE" == "smoke" && "$PACKAGE" == */* ]]; then
+    if [[ "$TEST_TYPE" == "smoke" && "$PACKAGE" == */* ]]; then
       echo "Sub-packages are allowed only in FULL run"
       echo ""
       continue
@@ -133,7 +140,7 @@ else
     break
   done
 fi
-
+fi
 echo ""
 
 cd $SOURCE_ROOT/istio
@@ -174,15 +181,18 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
    git clean -f
    git stash
 
-   if [ "${OVERRIDE_SKIP_TESTS}" = "run_test" ]; then
-      read -rp "Enter TEST PACKAGE: " TEST_PACKAGE
+   if [ "${TEST_TYPE}" == "single_test" ]; then
+      RUN_ALL=""
       SKIP_PARSER_SUITE="${TEST_PACKAGE}"
+      #SKIP_PARSER_SKIP_TESTS="${SKIP_TESTS}"
       SKIP_PARSER_SKIP_TESTS=""
-      SKIP_PARSER_SKIP_SUBSUITES=""
-      read -rp "Enter TEST NAME: " RUN_TEST_ONLY
+      SKIP_PARSER_SKIP_SUBSUITES="${SKIP_SUBSUITES}"
       SKIP_PARSER_RUN_TESTS_ONLY="${RUN_TEST_ONLY}"
+      export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_single_test/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
+      LOG_DIR="/root/logs_istio/${RELEASE_VERSION}_single_test/${TEST_PACKAGE}"
+      JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}_single_test/"
    else
-   if [[ "$IS_SMOKE" == "smoke" ]]; then
+   if [[ "$TEST_TYPE" == "smoke" ]]; then
      TEST_FILE_NAME="test-config-smoke.yaml"
      export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
      LOG_DIR="/root/logs_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}"
@@ -193,17 +203,15 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
      LOG_DIR="/root/logs_istio/${RELEASE_VERSION}/${TEST_PACKAGE}"
      JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}/"
    fi
-   fi
-
+   
    curl -o config.yaml https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/main/skip_tests/"${TEST_FILE_NAME}"
    curl -O https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/main/skip_tests/parse-test-config.sh
    chmod +x ./parse-test-config.sh
    eval "$(./parse-test-config.sh config.yaml "$TEST_PACKAGE" downstream "$TEST_REPO_BRANCH")"
 
-
    skip_json="/root/ibm_skip_istio_test.json"
 
-   if [[ "$IS_SMOKE" == "full" && "$IBM_SKIP" == "true" && -f "$skip_json" ]]; then
+   if [[ "$TEST_TYPE" == "full" && "$IBM_SKIP" == "ibm" && -f "$skip_json" ]]; then
    skip_key="$(echo "$OSSM_VERSION" | awk -F. '{print $1 "." $2}')"
 
    ibm_skip_test=$(jq -r \
@@ -229,6 +237,8 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
    fi
 
    fi
+
+   fi
    
    if [[ "$TEST_PACKAGE" == *"ambient"* ]]; then
      export AMBIENT="true"
@@ -250,7 +260,7 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
    echo "[$TEST_PACKAGE] Test Execution Started"
    echo ""
 
-   setsid prow/integ-suite-ocp.sh "${SKIP_PARSER_SUITE}" "${SKIP_PARSER_SKIP_TESTS}" "${SKIP_PARSER_SKIP_SUBSUITES}" "${SKIP_PARSER_RUN_TESTS_ONLY}" > "$LOG_FILE" 2>&1 &
+#   setsid prow/integ-suite-ocp.sh "${SKIP_PARSER_SUITE}" "${SKIP_PARSER_SKIP_TESTS}" "${SKIP_PARSER_SKIP_SUBSUITES}" "${SKIP_PARSER_RUN_TESTS_ONLY}" > "$LOG_FILE" 2>&1 &
 
    PID=$!
    tail -f "$LOG_FILE" &
