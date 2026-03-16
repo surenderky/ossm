@@ -54,7 +54,7 @@ FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}'
 RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%I_%M_%P" | tr '[:upper:]' '[:lower:]')"
-IBM_SKIP="true"
+IBM_SKIP="${1:-}"
 
 export GOPATH="$(go env GOPATH)"
 export PATH="$PATH:$(go env GOPATH)/bin"
@@ -63,7 +63,7 @@ export TEST_HUB="quay.io/maistra"
 export SKIP_SETUP="true"
 export TEST_OUTPUT_FORMAT="junit"
 export AMBIENT="false"
-export IBM="${1:-}"
+export IBM="true"
 export INSTALL_METALLB="false"
 
 if [[ "$(uname -m)" == "s390x" ]]; then
