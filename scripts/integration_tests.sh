@@ -292,23 +292,12 @@ sleep 10
 
 done
 
-if [[ "$RUN_ALL" =~ ^[Yy]$ ]]; then
-for TEST_PACKAGE in "${PKGS[@]}"; do
 echo "--------------------------------------------------------------------"
 echo "[$TEST_PACKAGE] Test Result"
 echo "--------------------------------------------------------------------"
 echo ""
 $SOURCE_ROOT/generate_test_report.sh "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_NAME}_${TS}.xml"
-done
 
-else
-
-echo "--------------------------------------------------------------------"
-echo "[$TEST_PACKAGE] Test Result"
-echo "--------------------------------------------------------------------"
-echo ""
-$SOURCE_ROOT/generate_test_report.sh "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_NAME}_${TS}.xml"
-fi
 echo "--------------------------------------------------------------------"
 
 sleep 10
