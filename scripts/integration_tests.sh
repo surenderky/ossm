@@ -83,6 +83,11 @@ fi
 export ISTIO_VERSION="${ISTIO_VERSION}"
 TEST_REPO_BRANCH="release-$(echo "$ISTIO_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+).*/\1/')"
 
+ALLOWED=$(printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C && \
+echo "ambient|pilot|security|telemetry" || echo "pilot|security|telemetry")
+
+IFS="|" read -ra ALLOWED_PKGS <<< "$ALLOWED"
+
 read -rp "Is this a smoke or full or single_test run? (smoke|full|single_test): " TEST_TYPE
 echo ""
 if [[ "$TEST_TYPE" != "smoke" && "$TEST_TYPE" != "full" && "$TEST_TYPE" != "single_test" ]]; then
@@ -92,17 +97,11 @@ if [[ "$TEST_TYPE" != "smoke" && "$TEST_TYPE" != "full" && "$TEST_TYPE" != "sing
 fi
 
 if [ "${TEST_TYPE}" = "single_test" ]; then
-     read -rp "Enter Package: " TEST_PACKAGE
-     PACKAGE=$TEST_PACKAGE
+     read -rp "Enter Package from ($ALLOWED) or Sub-package: " PACKAGE
      #read -rp "Enter Tests to skip: " SKIP_TESTS
-     read -rp "Enter Sub-package to skip: " SKIP_SUBSUITES
+     #read -rp "Enter Sub-package to skip: " SKIP_SUBSUITES
      read -rp "Enter Test Name: " RUN_TEST_ONLY
 else
-
-ALLOWED=$(printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C && \
-echo "ambient|pilot|security|telemetry" || echo "pilot|security|telemetry")
-
-IFS="|" read -ra ALLOWED_PKGS <<< "$ALLOWED"
 
 read -rp "Run all packages? (Y/N): " RUN_ALL
 echo ""
@@ -113,9 +112,9 @@ else
   while true; do
 
     if [[ "$TEST_TYPE" == "smoke" ]]; then
-      read -rp "Enter Package ($ALLOWED): " PACKAGE
+      read -rp "Enter Package from ($ALLOWED): " PACKAGE
     else
-      read -rp "Enter Package ($ALLOWED) or Sub-package(ex: security/pqc): " PACKAGE
+      read -rp "Enter Package from ($ALLOWED) or Sub-package: " PACKAGE
     fi
 
     ROOT="${PACKAGE%%/*}"
@@ -184,9 +183,8 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
    if [ "${TEST_TYPE}" == "single_test" ]; then
       RUN_ALL=""
       SKIP_PARSER_SUITE="${TEST_PACKAGE}"
-      #SKIP_PARSER_SKIP_TESTS="${SKIP_TESTS}"
       SKIP_PARSER_SKIP_TESTS=""
-      SKIP_PARSER_SKIP_SUBSUITES="${SKIP_SUBSUITES}"
+      SKIP_PARSER_SKIP_SUBSUITES=""
       SKIP_PARSER_RUN_TESTS_ONLY="${RUN_TEST_ONLY}"
       export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_single_test/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
       LOG_DIR="/root/logs_istio/${RELEASE_VERSION}_single_test/${TEST_PACKAGE}"

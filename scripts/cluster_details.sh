@@ -10,11 +10,15 @@ if ! oc whoami &>/dev/null; then
 fi
 echo""
 CURRENT_CLUSTER="$(oc whoami --show-server)"
-echo "Cluster API: $CURRENT_CLUSTER"
-CURRENT_CLUSTER="$(echo "$CURRENT_CLUSTER" | awk -F'[.:]' '{print $3}')"
-echo "Cluster Console = https://console-openshift-console.apps.$CURRENT_CLUSTER.maistra.upshift.redhat.com"
-KUBEADMIN_PASSWORD=$(grep -oP 'Password:\s+\K.{23}' "/root/$CURRENT_CLUSTER.log" | tail -n 1)
-echo "Kubeadmin Password: $KUBEADMIN_PASSWORD"
+
+if [[ "$(uname -m)" == "s390x" ]]; then
+ echo "Cluster API: $CURRENT_CLUSTER"
+ CURRENT_CLUSTER="$(echo "$CURRENT_CLUSTER" | awk -F'[.:]' '{print $3}')"
+ echo "Cluster Console = https://console-openshift-console.apps.$CURRENT_CLUSTER.maistra.upshift.redhat.com"
+ KUBEADMIN_PASSWORD=$(grep -oP 'Password:\s+\K.{23}' "/root/$CURRENT_CLUSTER.log" | tail -n 1)
+ echo "Kubeadmin Password: $KUBEADMIN_PASSWORD"
+fi 
+
 # OCP version
 OCP_VERSION=$(oc get clusterversion version -o jsonpath='{.status.desired.version}' | cut -d. -f1,2)
 echo "OCP Version: $OCP_VERSION"
@@ -30,3 +34,4 @@ OSSM_VERSION=$(oc get csv -n openshift-operators \
   | grep servicemeshoperator3 \
   | awk '{print $2}')
 echo "OSSM version: $OSSM_VERSION"
+echo ""
