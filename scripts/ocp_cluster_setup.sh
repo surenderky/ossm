@@ -66,6 +66,15 @@ fi
 # Construct the cluster API URL
 CLUSTER_API="https://api.$CLUSTER_NAME.maistra.upshift.redhat.com:6443"
 
+for i in {1..30}; do
+  if curl -k --silent --fail "$CLUSTER_API/readyz" >/dev/null; then
+    echo "API ready attempting login..."
+    break
+  fi
+  echo "Retry $i/30 : API not ready yet"
+  sleep 20
+done
+
 # Attempt login
 oc login -u kubeadmin -p "$KUBEADMIN_PASSWORD" --server="$CLUSTER_API" --insecure-skip-tls-verify
 
