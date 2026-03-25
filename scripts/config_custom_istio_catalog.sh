@@ -27,11 +27,6 @@ if oc get catalogsource "$CATALOG_NAME" -n "$CATALOG_NS" &>/dev/null; then
     echo "Deleting existing CatalogSource..."
     oc delete catalogsource "$CATALOG_NAME" -n "$CATALOG_NS" --wait=true
 
-else
-    echo "CatalogSource $CATALOG_NAME does NOT exist"
-
-    read -rp "Do you want to create it? (Y/N): " CREATE
-    [[ ! "$CREATE" =~ ^[Yy]$ ]] && echo "Skipping CatalogSource creation" && exit 0
 fi
 
 while true; do

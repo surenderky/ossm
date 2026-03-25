@@ -99,7 +99,8 @@ fi
 if [ "${TEST_TYPE}" = "single_test" ]; then
      read -rp "Enter Package from ($ALLOWED) or Sub-package: " PACKAGE
      #read -rp "Enter Tests to skip: " SKIP_TESTS
-     read -rp "Enter Sub-package to skip: " SKIP_SUBSUITES
+     #read -rp "Enter Sub-package to skip: " SKIP_SUBSUITES
+     echo""
      read -rp "Enter Test Name: " RUN_TEST_ONLY
 else
 
@@ -184,7 +185,15 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
       RUN_ALL=""
       SKIP_PARSER_SUITE="${TEST_PACKAGE}"
       SKIP_PARSER_SKIP_TESTS=""
-      SKIP_PARSER_SKIP_SUBSUITES="${SKIP_SUBSUITES}"
+      if [[ "$SKIP_PARSER_SUITE" == "ambient" ]]; then
+      SKIP_PARSER_SKIP_SUBSUITES="ambient/cni|ambient/waypoint|ambient/pqc|ambient/cnirepair|ambient/cniupgrade|ambient/crl|ambient/untaint|ambient/waypoint"
+      elif [[ "$SKIP_PARSER_SUITE" == "security" ]]; then
+      SKIP_PARSER_SKIP_SUBSUITES="security/ca_custom_root|security/cacert_rotation|security/crl|security/ecc_signature_algorithm|security/external_ca|security/file_mounted_certs|security/filebased_tls_origination|security/fuzz|security/https_jwt|security/policy_attachment_only|security/pqc|security/remote_jwks|security/sds_ingress/quic"
+      elif [[ "$SKIP_PARSER_SUITE" == "pilot" ]]; then
+      SKIP_PARSER_SKIP_SUBSUITES="pilot/analysis|pilot/gie|pilot/mcs|pilot/autoexport|pilot/nftables|pilot/cni|pilot/forwardproxy|pilot/localwatcher|pilot/mcs|pilot/multiplecontrolplanes|pilot/proxyconfig|pilot/resourcefilter|pilot/revisions"
+      else
+      SKIP_PARSER_SKIP_SUBSUITES=""
+      fi
       SKIP_PARSER_RUN_TESTS_ONLY="${RUN_TEST_ONLY}"
       export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_single_test/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
       LOG_DIR="/root/logs_istio/${RELEASE_VERSION}_single_test/${TEST_PACKAGE}"

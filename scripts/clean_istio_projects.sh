@@ -16,7 +16,7 @@ echo " Current cluster: $(oc whoami --show-server)"
 # 1. Gather targets based on your Requester/System logic
 TARGETS=$(oc get projects -o json | jq -r '.items[] |
   select(.metadata.annotations["openshift.io/requester"] == null) |
-  select(.metadata.name | test("^(openshift|kube|default|istio|ztunnel|metallb|node-vertical)") | not) |
+  select(.metadata.name | test("^(openshift|kube|default|metallb|node-vertical)") | not) |
   .metadata.name')
 
 # 2. Check if list is empty

@@ -1,29 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---- Resolve script location ----
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SOURCE_ROOT"
 
-# ---- User input ----
 read -rp "Enter ISTIO VERSION (ex. v1.24.6): " ISTIO_CR_VERSION
-
 ISTIO_GIT_BRANCH="release-1.24"
-
-# ---- Repos ----
 ISTIO_REPO=git@github.com:openshift-service-mesh/istio.git
 ISTIO_DIR=istio-3.0
+ISTIO_FRESH_CLONE=false
 
 CSB_REPO=git@gitlab.cee.redhat.com:istio/servicemesh-qe/jenkins-csb-declaration.git
 CSB_DIR=jenkins-csb-declaration
 
-ISTIO_FRESH_CLONE=false
-
-# ---- Istio ----
 if [[ ! -d "$ISTIO_DIR/.git" ]]; then
   echo "Cloning Istio..."
-  git clone --depth 1 --branch "$ISTIO_GIT_BRANCH" "$ISTIO_REPO" "$ISTIO_DIR"
+  git clone "$ISTIO_REPO" "$ISTIO_DIR"
   cd "$ISTIO_DIR"
+  git checkout "$ISTIO_GIT_BRANCH" 2>/dev/null || true
   ISTIO_FRESH_CLONE=true
 else
   echo "Updating Istio..."
@@ -38,7 +32,6 @@ else
   git pull --rebase origin "$ISTIO_GIT_BRANCH" 2>/dev/null || true
 fi
 
-# ---- Jenkins CSB (inside istio/) ----
 if [[ "$ISTIO_FRESH_CLONE" == "true" ]]; then
   echo "Fresh Istio clone → cloning CSB..."
   git clone "$CSB_REPO" "$CSB_DIR"
