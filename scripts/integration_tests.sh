@@ -66,7 +66,7 @@ export AMBIENT="false"
 export IBM="true"
 export INSTALL_METALLB="false"
 
-if [[ "$(uname -m)" == "s390x" ]]; then
+if [[ "$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')" == "s390x" ]]; then
     export TAG="ibm-z"
 else
     export TAG="ibm-p"
@@ -83,8 +83,19 @@ fi
 export ISTIO_VERSION="${ISTIO_VERSION}"
 TEST_REPO_BRANCH="release-$(echo "$ISTIO_VERSION" | sed -E 's/^v([0-9]+\.[0-9]+).*/\1/')"
 
-ALLOWED=$(printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C && \
-echo "ambient|pilot|security|telemetry" || echo "pilot|security|telemetry")
+#ALLOWED=$(printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C && \
+#echo "ambient|pilot|security|telemetry" || echo "pilot|security|telemetry")
+if printf '%s\n' 3.2 "$OSSM_VERSION" | sort -V -C; then
+  # OSSM >= 3.2
+  if [[ "$FIPS_MODE" == "fips" && "$OSSM_VERSION" =~ ^3\.2 ]]; then
+    ALLOWED="pilot|security|telemetry"
+  else
+    ALLOWED="ambient|pilot|security|telemetry"
+  fi
+else
+  # OSSM < 3.2
+  ALLOWED="pilot|security|telemetry"
+fi
 
 IFS="|" read -ra ALLOWED_PKGS <<< "$ALLOWED"
 
@@ -295,10 +306,6 @@ cp "$ARTIFACT_DIR/junit/junit.xml" "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST_N
 
 sleep 10
 
-((rc!=0)) && FINAL_RC=1
-
-done
-
 echo "--------------------------------------------------------------------"
 echo "[$TEST_PACKAGE] Test Result"
 echo "--------------------------------------------------------------------"
@@ -307,6 +314,8 @@ $SOURCE_ROOT/generate_test_report.sh "$JUNIT_DIR/junit_${RELEASE_VERSION}_${TEST
 
 echo "--------------------------------------------------------------------"
 
-sleep 10
+((rc!=0)) && FINAL_RC=1
+
+done
 
 exit $FINAL_RC

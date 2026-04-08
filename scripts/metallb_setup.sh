@@ -6,41 +6,24 @@ set -euo pipefail
 if ! oc whoami &>/dev/null; then
   echo " You are not logged into an OpenShift cluster."
   echo " Please log in using: oc login -u kubeadmin -p <password> --server=https://api.clustername.maistra.upshift.redhat.com:6443 --insecure-skip-tls-verify"
+  echo ""
   exit 1
 fi
 
-# Optional: Show current user and cluster
-echo " Logged in as: $(oc whoami)"
-echo " Current cluster: $(oc whoami --show-server)"
+# Cluster Name
+echo "Cluster: $(oc whoami --show-server | awk -F'[.:]' '{print $3}')"
+echo ""
 
 # Step 0: Check and delete existing MetalLB Operator Subscription if it exists
-echo "[0/8] Checking if MetalLB Operator is already installed..."
+echo "[1/8] Checking if MetalLB Operator is already installed..."
 if oc get subscription -n metallb-system metallb >/dev/null 2>&1; then
-  echo "  -> MetalLB Subscription found. Deleting..."
-  oc delete subscription -n metallb-system metallb
+  echo " Skipping setup as MetalLB Subscription exists"
 
-  CSV_NAME=$(oc get csv -n metallb-system -o name | grep metallb || true)
-  if [ -n "$CSV_NAME" ]; then
-    echo "  -> Deleting CSV: $CSV_NAME"
-    oc delete -n metallb-system "$CSV_NAME"
-  fi
-fi
+else
 
-# Step 1: Delete existing metallb-system namespace if it exists
-echo "[1/8] Checking for 'metallb-system' namespace..."
-if oc get ns metallb-system >/dev/null 2>&1; then
-  echo "  -> Namespace 'metallb-system' exists. Deleting..."
-  oc delete ns metallb-system
-  echo "  -> Waiting for namespace to terminate..."
-  while oc get ns metallb-system >/dev/null 2>&1; do
-    sleep 5
-  done
-fi
-
-echo "  -> Creating 'metallb-system' namespace..."
+echo "Creating 'metallb-system' namespace..."
 oc create namespace metallb-system
 
-# Step 2: Install MetalLB Operator (AllNamespaces mode)
 echo "[2/8] Installing MetalLB Operator in AllNamespaces mode..."
 cat <<EOF | oc apply -f -
 apiVersion: operators.coreos.com/v1
@@ -65,7 +48,6 @@ spec:
   installPlanApproval: Automatic
 EOF
 
-# Step 3: Wait for Operator CSV to reach Succeeded phase
 echo "[3/8] Waiting for MetalLB Operator to be installed..."
 while true; do
   CSV_STATUS=$(oc get csv -n metallb-system -o jsonpath='{.items[?(@.status.phase=="Succeeded")].metadata.name}' 2>/dev/null || echo "")
@@ -74,9 +56,8 @@ while true; do
   fi
   sleep 10
 done
-echo "  -> Operator installed successfully."
+echo "Operator installed successfully."
 
-# Step 4: Create MetalLB instance
 echo "[4/8] Creating MetalLB instance..."
 cat <<EOF | oc apply -f -
 apiVersion: metallb.io/v1beta1
@@ -86,7 +67,6 @@ metadata:
   namespace: metallb-system
 EOF
 
-# Step 5: Verify controller deployment
 echo "[5/8] Waiting for MetalLB controller deployment to be ready..."
 while true; do
   AVAILABLE=$(oc get deployment controller -n metallb-system -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "")
@@ -95,9 +75,8 @@ while true; do
   fi
   sleep 5
 done
-echo "  -> Controller is running."
+echo "Controller is running."
 
-# Step 6: Verify speaker daemonset
 echo "[6/8] Waiting for MetalLB speaker daemonset to be ready..."
 while true; do
   DESIRED=$(oc get daemonset speaker -n metallb-system -o jsonpath='{.status.desiredNumberScheduled}' 2>/dev/null || echo "")
@@ -107,27 +86,21 @@ while true; do
   fi
   sleep 5
 done
-echo "  -> Speaker is running ($READY/$DESIRED pods ready)."
+echo "Speaker is running ($READY/$DESIRED pods ready)."
 
 echo "[7/8] Setting up IPAddressPool..."
 
-CURRENT_CLUSTER="$(oc whoami --show-server)"
-CURRENT_CLUSTER="$(echo "$CURRENT_CLUSTER" | awk -F'[.:]' '{print $3}')"
-
-if [[ "$CURRENT_CLUSTER" == "ocpz1-l4c" || "$CURRENT_CLUSTER" == "ocpz1-l23" ]]; then
-  ip_range="192.168.150.200-192.168.150.245"
-
-elif [[ "$CURRENT_CLUSTER" == "ocpz2-l4c" || "$CURRENT_CLUSTER" == "ocpz2-l23" ]]; then
-  ip_range="192.168.160.200-192.168.160.245"
-
-else
-  while :; do
-    read -p "Enter IP range: " ip_range
-    [[ -z "$ip_range" ]] && { echo "Empty range, try again."; continue; }
-    read -p "Confirm '$ip_range'? (Y/N): " ok
-    [[ $ok == [Yy] ]] && break
-  done
-fi
+#if [[ "$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')" == "s390x" ]]; then
+  subnet=$(oc get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' | awk -F. '{print $1"."$2"."$3}')
+  ip_range="${subnet}.200-${subnet}.245"
+#else
+#  while :; do
+#    read -p "Enter IP range: " ip_range
+#    [[ -z "$ip_range" ]] && { echo "Empty range, try again."; continue; }
+#    read -p "Confirm '$ip_range'? (Y/N): " ok
+#    [[ $ok == [Yy] ]] && break
+#  done
+#fi
 
 sleep 10
 
@@ -151,4 +124,4 @@ metadata:
 EOF
 
 echo "[8/8] MetalLB is fully configured"
-
+fi

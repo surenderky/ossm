@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CATALOG="custom-istio-catalog"
+# Check OpenShift login
+if ! oc whoami &>/dev/null; then
+  echo "You are not logged into an OpenShift cluster."
+  echo "Please log in using: oc login -u kubeadmin -p <password> --server=https://api.clustername.maistra.upshift.redhat.com:6443 --insecure-skip-tls-verify"
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "CatalogSources:"
+echo ""
+mapfile -t CATS < <(oc get catalogsource -n openshift-marketplace -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+(( ${#CATS[@]} == 0 )) && { echo "No CatalogSource found"; exit 1; }
+
+for i in "${!CATS[@]}"; do echo "$((i+1))) ${CATS[i]}"; done
+echo ""
+while true; do
+  read -rp "Select catalog number: " n
+  [[ $n =~ ^[0-9]+$ && n -ge 1 && n -le ${#CATS[@]} ]] && { CATALOG=${CATS[n-1]}; break; }
+  echo "Invalid selection. Try again."
+done
+echo ""
+
 CAT_NS="openshift-marketplace"
 NS="openshift-operators"
 PKG="servicemeshoperator3"
@@ -18,22 +40,23 @@ oc get operatorgroup -n "$NS" >/dev/null 2>&1 || {
 }
 
 # Fetch available channels
-CHANNELS=$(oc get packagemanifest "$PKG" -n "$CAT_NS" \
-  -o jsonpath='{.status.channels[*].name}')
-
-if [[ -z "$CHANNELS" ]]; then
-  echo "No channels found for package $PKG"
-  exit 1
-fi
-
-echo "Available channels:"
-select CHANNEL in $CHANNELS; do
-  [[ -n "$CHANNEL" ]] && break
-  echo "Invalid selection"
+mapfile -t CH < <(oc get packagemanifest "$PKG" -n "$CAT_NS" -o jsonpath='{.status.channels[*].name}' | xargs -n1)
+(( ${#CH[@]} == 0 )) && { echo "No channels for $PKG"; exit 1; }
+echo ""
+echo "Available Channels:"; for i in "${!CH[@]}"; do echo "$((i+1))) ${CH[i]}"; done
+echo ""
+while :; do
+  read -rp "Select channel: " n
+  [[ $n =~ ^[0-9]+$ && n -ge 1 && n -le ${#CH[@]} ]] && { CHANNEL=${CH[n-1]}; break; }
+  echo "Invalid selection. Try agaiin."
 done
+echo""
 
-read -rp "Enter Service Mesh version (e.g. 3.0.1): " SM_VERSION
-[[ -z "$SM_VERSION" ]] && { echo "Service Mesh version is required"; exit 1; }
+while :; do
+  read -rp "Enter Service Mesh version (e.g. 3.3.0): " SM_VERSION
+  [[ -n "$SM_VERSION" ]] && break
+  echo "Service Mesh version is required"
+done
 
 # Create / update Subscription
 oc apply -f - <<EOF
@@ -53,7 +76,7 @@ EOF
 
 # Wait for CSV
 until oc get csv -n "$NS" | grep -q "servicemeshoperator3.v${SM_VERSION}.*Succeeded"; do
-  sleep 5
+  sleep 30
 done
 
 echo "Service Mesh ${SM_VERSION} installed successfully on channel ${CHANNEL}"

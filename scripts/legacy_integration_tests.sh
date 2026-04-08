@@ -56,7 +56,7 @@ export SKIP_WORKLOADS="tproxy,vm"
 export PATH=$PATH:$(go env GOPATH)/bin
 export HUB=quay.io/maistra
 
-if [[ "$(uname -m)" == "s390x" ]]; then
+if [[ "$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')" == "s390x" ]]; then
     export TAG="ibm-z"
 else
     export TAG="ibm-p"
@@ -126,7 +126,6 @@ declare -A TEMPLATE_MAP=(
 )
 
 SUITES=("${!TEMPLATE_MAP[@]}")
-#SUITES_SORTED=($(printf '%s\n' "${SUITES[@]}" | sort))
 mapfile -t SUITES_SORTED < <(printf '%s\n' "${SUITES[@]}" | sort)
 
 run_test_suite() {

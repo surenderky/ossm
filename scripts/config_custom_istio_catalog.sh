@@ -18,17 +18,6 @@ SOURCE_ROOT="$(pwd)"
 CATALOG_NS="openshift-marketplace"
 CATALOG_NAME="custom-istio-catalog"
 
-if oc get catalogsource "$CATALOG_NAME" -n "$CATALOG_NS" &>/dev/null; then
-    echo "CatalogSource $CATALOG_NAME already exists"
-
-    read -rp "Do you want to delete and recreate it? (Y/N): " DEL
-    [[ ! "$DEL" =~ ^[Yy]$ ]] && echo "Skipping CatalogSource operation" && exit 0
-
-    echo "Deleting existing CatalogSource..."
-    oc delete catalogsource "$CATALOG_NAME" -n "$CATALOG_NS" --wait=true
-
-fi
-
 while true; do
     read -rp "Enter Image IIB only: " IIB
     [[ -n "$IIB" ]] && break
@@ -36,6 +25,24 @@ while true; do
 done
 
 IMAGE="brew.registry.redhat.io/rh-osbs/iib:$IIB"
+
+# Check if catalog exists
+if oc get catalogsource "$CATALOG_NAME" -n "$CATALOG_NS" &>/dev/null; then
+
+    EXISTING_IMAGE=$(oc get catalogsource "$CATALOG_NAME" \
+        -n "$CATALOG_NS" -o jsonpath='{.spec.image}')
+
+    if [[ "$EXISTING_IMAGE" == "$IMAGE" ]]; then
+        echo "Same IIB already configured, Skipping Catalog creation"
+        exit 0
+    else
+        echo "Found Old IIB, Recreating CatalogSource"
+        oc delete catalogsource "$CATALOG_NAME" -n "$CATALOG_NS" --wait=true
+    fi
+
+else
+    echo "No existing custom catalog found, Creating new"
+fi
 
 CUSTOM_CATALOG_FILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/custom-catalog-source.yaml"
 
@@ -50,15 +57,15 @@ oc apply -f "$CUSTOM_CATALOG_FILE"
 
 echo "Waiting for CatalogSource to be READY..."
 
-oc wait catalogsource/custom-istio-catalog \
-  -n openshift-marketplace \
+oc wait catalogsource/$CATALOG_NAME \
+  -n "$CATALOG_NS" \
   --for=jsonpath='{.status.connectionState.lastObservedState}'=READY \
   --timeout=180s
 
 if [[ $? -ne 0 ]]; then
-    echo " CatalogSource did not become READY"
-    oc get catalogsource custom-istio-catalog -n openshift-marketplace -o yaml | grep -A5 connectionState
+    echo "CatalogSource did not become READY"
+    oc get catalogsource "$CATALOG_NAME" -n "$CATALOG_NS" -o yaml | grep -A5 connectionState
     exit 1
 fi
 
-echo "CatalogSource is ready"
+echo "CatalogSource is READY"
