@@ -55,6 +55,7 @@ RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%I_%M_%P" | tr '[:upper:]' '[:lower:]')"
 IBM_SKIP="${1:-}"
+ARCH=$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')
 
 export GOPATH="$(go env GOPATH)"
 export PATH="$PATH:$(go env GOPATH)/bin"
@@ -66,10 +67,14 @@ export AMBIENT="false"
 export IBM="true"
 export INSTALL_METALLB="false"
 
-if [[ "$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')" == "s390x" ]]; then
+if [[ "$ARCH" == "s390x" ]]; then
     export TAG="ibm-z"
 else
     export TAG="ibm-p"
+fi
+
+if [[ "$OSSM_VERSION" >= "3.3" && "$FIPS_MODE" == "fips" ]]; then
+   export FIPS="true"
 fi
 
 read -rp "Enter ISTIO CR Version (ex. v1.28.4): " ISTIO_VERSION
@@ -211,21 +216,27 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
       JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}_single_test/"
    else
    if [[ "$TEST_TYPE" == "smoke" ]]; then
-     TEST_FILE_NAME="test-config-smoke.yaml"
+     TEST_FILE_NAME="skip_tests_smoke.yaml"
      export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
      LOG_DIR="/root/logs_istio/${RELEASE_VERSION}_smoke/${TEST_PACKAGE}"
      JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}_smoke/"
    else
-     TEST_FILE_NAME="test-config-full.yaml"
+     TEST_FILE_NAME="skip_tests_full.yaml"
      export ARTIFACT_DIR="/root/artifacts_istio/${RELEASE_VERSION}/${TEST_PACKAGE}/${TEST_NAME}_artifacts_${TS}"
      LOG_DIR="/root/logs_istio/${RELEASE_VERSION}/${TEST_PACKAGE}"
      JUNIT_DIR="/root/junit_istio/${RELEASE_VERSION}/"
    fi
-   
-   curl -o config.yaml https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/main/skip_tests/"${TEST_FILE_NAME}"
+
+   CONFIG_FILE="./prow/skip_tests/${TEST_FILE_NAME}"
+   if [ ! -f "${CONFIG_FILE}" ]; then
+    echo "Error: Config file ${CONFIG_FILE} not found in the repository under prow/skip_tests directory"
+    exit 1
+   fi
+
    curl -O https://raw.githubusercontent.com/openshift-service-mesh/ci-utils/refs/heads/main/skip_tests/parse-test-config.sh
    chmod +x ./parse-test-config.sh
-   eval "$(./parse-test-config.sh config.yaml "$TEST_PACKAGE" downstream "$TEST_REPO_BRANCH")"
+
+   eval "$(./parse-test-config.sh "${CONFIG_FILE}" "${TEST_PACKAGE}" "downstream")"
 
    skip_json="/root/ibm_skip_istio_test.json"
 
