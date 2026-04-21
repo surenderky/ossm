@@ -73,7 +73,7 @@ else
     export TAG="ibm-p"
 fi
 
-if [ "$(printf '%s\n3.3' "$OSSM_VERSION" | sort -V | head -n1)" = "3.3" ] && [ "$FIPS_MODE" = "non-fips" ]; then
+if [ "$(printf '%s\n3.3' "$OSSM_VERSION" | sort -V | head -n1)" = "3.3" ] && [ "$FIPS_MODE" = "fips" ]; then
    export FIPS="true"
    echo "Exporting FIPS=$FIPS"
 fi
