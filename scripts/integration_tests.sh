@@ -73,8 +73,9 @@ else
     export TAG="ibm-p"
 fi
 
-if [[ "$OSSM_VERSION" >= "3.3" && "$FIPS_MODE" == "fips" ]]; then
+if [ "$(printf '%s\n3.3' "$OSSM_VERSION" | sort -V | head -n1)" = "3.3" ] && [ "$FIPS_MODE" = "non-fips" ]; then
    export FIPS="true"
+   echo "Exporting FIPS=$FIPS"
 fi
 
 read -rp "Enter ISTIO CR Version (ex. v1.28.4): " ISTIO_VERSION
