@@ -49,7 +49,7 @@ TEST_TYPE="smoke"
 echo "Running Smoke Tests"
 echo ""
 
-TEMPLATE_PATH="${SOURCE_ROOT}/istio-3.0/jenkins-csb-declaration/resources/ocp/templates/istio"
+TEMPLATE_PATH="${SOURCE_ROOT}/jenkins-csb-declaration/resources/ocp/templates/istio"
 
 export GOPATH="$(go env GOPATH)"
 export SKIP_WORKLOADS="tproxy,vm"
@@ -65,7 +65,7 @@ fi
 extract_extra_test_args() {
   local block_name="$1"
   local test_args="$2"
-  local groovy_file="${SOURCE_ROOT}/istio-3.0/jenkins-csb-declaration/vars/istioIntegrationTestData.groovy"
+  local groovy_file="${SOURCE_ROOT}/jenkins-csb-declaration/vars/istioIntegrationTestData.groovy"
 
   awk -v block_name="$block_name" -v test_args="$test_args" '
   BEGIN {
@@ -167,7 +167,7 @@ run_test_suite() {
   local logfile="$LOG_DIR/${testsuite_file}_${TS}.log"
   local report_dir="$ARTIFACT_DIR/${test_path}"
 
-  cd ${SOURCE_ROOT}/istio-3.0
+  cd ${SOURCE_ROOT}/istio
 
   # Clean stale Istio CRD's
   echo "Cleaning stale Istio CRD's..."
@@ -225,7 +225,7 @@ run_test_suite() {
 
   if [[ "" == "pilot" ]]; then
   echo "apply patch until https://github.com/kubernetes-sigs/gateway-api/pull/3389 is merged"
-  git apply jenkins-csb-declaration/resources/patches/istio-gw-api-coredns-fix.patch
+  git apply ${SOURCE_ROOT}/jenkins-csb-declaration/resources/patches/istio-gw-api-coredns-fix.patch
   echo ""
   fi
 

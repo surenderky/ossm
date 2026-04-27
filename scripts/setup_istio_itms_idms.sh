@@ -19,7 +19,7 @@ if oc get itms "istio-integration-required-images-registry-mirror" &>/dev/null &
     echo "Skipping setup as istio-integration-required-images-registry-mirror already exists in ITMS and IDMS"
 else
 
-oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/ibm/istio-integration-registry-itms-idms.yaml
+oc apply -f ${SOURCE_ROOT}/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/ibm/istio-integration-registry-itms-idms.yaml
 
 sleep 30
 

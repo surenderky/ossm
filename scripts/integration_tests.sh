@@ -54,7 +54,7 @@ FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}'
 RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%I_%M_%P" | tr '[:upper:]' '[:lower:]')"
-IBM_SKIP="${1:-}"
+#IBM_SKIP="${1:-}"
 ARCH=$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')
 
 export GOPATH="$(go env GOPATH)"
@@ -239,34 +239,34 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
 
    eval "$(./parse-test-config.sh "${CONFIG_FILE}" "${TEST_PACKAGE}" "downstream")"
 
-   skip_json="/root/ibm_skip_istio_test.json"
+ #  skip_json="/root/ibm_skip_istio_test.json"
 
-   if [[ "$TEST_TYPE" == "full" && "$IBM_SKIP" == "ibm" && -f "$skip_json" ]]; then
-   skip_key="$(echo "$OSSM_VERSION" | awk -F. '{print $1 "." $2}')"
+ #  if [[ "$TEST_TYPE" == "full" && "$IBM_SKIP" == "ibm" && -f "$skip_json" ]]; then
+ #  skip_key="$(echo "$OSSM_VERSION" | awk -F. '{print $1 "." $2}')"
 
-   ibm_skip_test=$(jq -r \
-     --arg v "$skip_key" \
-     --arg a "$(uname -m)" \
-     --arg p "$TEST_PACKAGE" \
-     '.[$v][$a][$p].skip_test // empty' \
-     "$skip_json")
+ #  ibm_skip_test=$(jq -r \
+ #    --arg v "$skip_key" \
+ #    --arg a "$(uname -m)" \
+ #    --arg p "$TEST_PACKAGE" \
+ #    '.[$v][$a][$p].skip_test // empty' \
+ #    "$skip_json")
 
-   if [[ -n "$ibm_skip_test" ]]; then
-     SKIP_PARSER_SKIP_TESTS="${SKIP_PARSER_SKIP_TESTS}${ibm_skip_test}"
-   fi
+ #  if [[ -n "$ibm_skip_test" ]]; then
+ #    SKIP_PARSER_SKIP_TESTS="${SKIP_PARSER_SKIP_TESTS}${ibm_skip_test}"
+ #  fi
 
-   ibm_skip_subsuite=$(jq -r \
-     --arg v "$skip_key" \
-     --arg a "$(uname -m)" \
-     --arg p "$TEST_PACKAGE" \
-     '.[$v][$a][$p].skip_subsuite // empty' \
-     "$skip_json")
+ #  ibm_skip_subsuite=$(jq -r \
+ #    --arg v "$skip_key" \
+ #    --arg a "$(uname -m)" \
+ #    --arg p "$TEST_PACKAGE" \
+ #    '.[$v][$a][$p].skip_subsuite // empty' \
+ #    "$skip_json")
 
-   if [[ -n "$ibm_skip_subsuite" ]]; then
-     SKIP_PARSER_SKIP_SUBSUITES="${ibm_skip_subsuite}"
-   fi
+ #  if [[ -n "$ibm_skip_subsuite" ]]; then
+ #    SKIP_PARSER_SKIP_SUBSUITES="${ibm_skip_subsuite}"
+ #  fi
 
-   fi
+ #  fi
 
    fi
    

@@ -44,7 +44,7 @@ else
     echo "No existing custom catalog found, Creating new"
 fi
 
-CUSTOM_CATALOG_FILE="$SOURCE_ROOT/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/custom-catalog-source.yaml"
+CUSTOM_CATALOG_FILE="$SOURCE_ROOT/jenkins-csb-declaration/resources/ocp/templates/olm/custom/custom-catalog-source.yaml"
 
 yq -i "
   .metadata.name = \"$CATALOG_NAME\" |

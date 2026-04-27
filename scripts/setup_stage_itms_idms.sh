@@ -20,7 +20,7 @@ if oc get itms "stage-registry" &>/dev/null && oc get idms "stage-registry" &>/d
     echo "Skipping setup as stage-registry already exists in ITMS and IDMS"
 else
 
-oc apply -f ${SOURCE_ROOT}/istio/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/stage-registry-itms-idms.yaml
+oc apply -f ${SOURCE_ROOT}/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/stage-registry-itms-idms.yaml
 
 sleep 30
 
