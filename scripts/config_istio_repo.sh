@@ -45,7 +45,8 @@ else
 fi
 
 if [[ "$ISTIO_GIT_BRANCH" == "release-1.24" ]]; then
-read -rp "Enter ISTIO VERSION (ex. v1.24.6): " ISTIO_CR_VERSION
+ISTIO_CR_VERSION="v1.24.6"
+echo "Setting ISTIO_CR_VERSION to $ISTIO_CR_VERSION, if it is different version, please change in this file"
 cd "$CSB_DIR/resources/ocp/templates/istio"
 
 for file in *.yaml; do
