@@ -1,10 +1,11 @@
 Steps for Integration Testing
 
+***Common for ALL OSSM Versions***
 
 1) Run ./config_istio_repo.sh and provide release branch to configure openshift-service-mesh/istio git repo for each OSSM version.
 
-   - Ex: For OSSM 3.0.8 release branch is release-1.24 and provide the Istio version ex. v1.24.6.
-   - Ex: For OSSM 3.2.2 release branch is release-1.27.
+   - Ex: For OSSM 3.0.8 release branch is release-1.24
+   - Ex: For OSSM 3.3.2 release branch is release-1.28
 
 2) Run ./metallb_setup.sh to setup metal load balancer with ipaddresspool & L2 advertisement.
 
