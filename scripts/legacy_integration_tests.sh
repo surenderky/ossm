@@ -56,6 +56,9 @@ export SKIP_WORKLOADS="tproxy,vm"
 export PATH=$PATH:$(go env GOPATH)/bin
 export HUB=quay.io/maistra
 
+#Install gotestsum
+go install gotest.tools/gotestsum@latest
+
 if [[ "$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')" == "s390x" ]]; then
     export TAG="ibm-z"
 else

@@ -13,7 +13,7 @@ fi
 echo " Logged in as: $(oc whoami)"
 echo " Current cluster: $(oc whoami --show-server)"
 
-SOURCE_ROOT="$(pwd)"
+SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 if oc get itms "istio-integration-required-images-registry-mirror" &>/dev/null && oc get idms "istio-integration-required-images-registry-mirror" &>/dev/null; then
     echo "Skipping setup as istio-integration-required-images-registry-mirror already exists in ITMS and IDMS"

@@ -16,10 +16,8 @@ echo " Current cluster: $(oc whoami --show-server)"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 if oc get itms "stage-registry" &>/dev/null && oc get idms "stage-registry" &>/dev/null; then
-    echo "Skipping setup as stage-registry already exists in ITMS and IDMS"
-else
 
-oc apply -f ${SOURCE_ROOT}/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/stage-registry-itms-idms.yaml
+oc delete -f ${SOURCE_ROOT}/jenkins-csb-declaration/resources/ocp/templates/olm/custom/mirrorSets/ibm/stage-registry-itms-idms.yaml
 
 sleep 30
 
@@ -34,4 +32,7 @@ for mcp in $(oc get mcp -o name); do
 done
 
 echo "All MCPs updated successfully."
+
+else
+    echo "Skipping setup as stage-registry ITMS and IDMS does not exists"
 fi
