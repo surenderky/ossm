@@ -22,8 +22,14 @@ oc delete subscription "$PKG" -n "$NS" --wait=true
 oc get csv -n "$NS" -o name | grep servicemeshoperator3 | xargs -r oc delete -n "$NS"
 
 # Delete Sail CRs
-for r in istio istiorevision istiorevisiontag ztunnel; do
-  oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete
+for r in istiocni istio istiorevision istiorevisiontag ztunnel; do
+  oc get "$r" -A -o name 2>/dev/null | xargs -r oc delete --wait=false
+done
+
+# Clear finalizers on any stuck CRs
+for crd in istiocnis istiorevisions istiorevisiontags istios ztunnels; do
+  oc get ${crd}.sailoperator.io -A -o name 2>/dev/null | \
+    xargs -r oc patch --type=merge -p '{"metadata":{"finalizers":[]}}'
 done
 
 # Delete Sail CRDs
