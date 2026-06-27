@@ -1,0 +1,14 @@
+diff --git a/pkg/test/framework/components/zipkin/kube.go b/pkg/test/framework/components/zipkin/kube.go
+index 6aa71571fa..e6641554f8 100644
+--- a/pkg/test/framework/components/zipkin/kube.go
++++ b/pkg/test/framework/components/zipkin/kube.go
+@@ -237,6 +237,9 @@ func (c *kubeComponent) ID() resource.ID {
+ }
+ 
+ func (c *kubeComponent) QueryTraces(limit int, spanName, annotationQuery, hostDomain string) ([]Trace, error) {
++	if net.ParseIP(hostDomain).String() != "<nil>" {
++		hostDomain = fmt.Sprintf("%s.sslip.io", strings.ReplaceAll(hostDomain, ":", "-"))
++	}
+ 	url, client, err := c.createHTTPClient(limit, spanName, annotationQuery, hostDomain)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
