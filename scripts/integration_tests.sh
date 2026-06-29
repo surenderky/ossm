@@ -67,10 +67,11 @@ export AMBIENT="false"
 export IBM="true"
 export INSTALL_METALLB="false"
 
+OSSM_TAG_VERSION=$(echo "$OSSM_VERSION" | cut -d. -f1,2 | tr '.' '-')
 if [[ "$ARCH" == "s390x" ]]; then
-    export TAG="ibm-z"
+    export TAG="ibm-z-${OSSM_TAG_VERSION}"
 else
-    export TAG="ibm-p"
+    export TAG="ibm-p-${OSSM_TAG_VERSION}"
 fi
 
 if [ "$(printf '%s\n3.3' "$OSSM_VERSION" | sort -V | head -n1)" = "3.3" ] && [ "$FIPS_MODE" = "fips" ]; then
