@@ -198,8 +198,10 @@ TEST_NAME="${TEST_PACKAGE//\//_}"
 
    git clean -f
    git stash
-   git apply $SOURCE_ROOT/patches/zipkin-sslip-host.patch
-
+   if [[ "$TEST_PACKAGE" == *"telemetry"* ]]; then
+   		git apply $SOURCE_ROOT/patches/zipkin-sslip-host.patch
+   fi
+   
    if [ "${TEST_TYPE}" == "single_test" ]; then
       RUN_ALL=""
       SKIP_PARSER_SUITE="${TEST_PACKAGE}"
