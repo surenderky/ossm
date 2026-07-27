@@ -37,6 +37,7 @@ FIPS_MODE=$(oc debug node/$(oc get nodes -o jsonpath='{.items[0].metadata.name}'
 RELEASE_VERSION="ossm_${OSSM_VERSION}_ocp_${OCP_VERSION}_${FIPS_MODE}"
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TS="$(TZ=Asia/Kolkata date +"%d_%b_%Y_%I_%M_%P" | tr '[:upper:]' '[:lower:]')"
+ARCH=$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')
 
 #read -rp "Is this a smoke or full run? (smoke|full): " TEST_TYPE
 #echo ""
@@ -59,10 +60,11 @@ export HUB=quay.io/maistra
 #Install gotestsum
 go install gotest.tools/gotestsum@latest
 
-if [[ "$(oc get node -o 'jsonpath={.items[0].status.nodeInfo.architecture}')" == "s390x" ]]; then
-    export TAG="ibm-z"
+OSSM_TAG_VERSION=$(echo "$OSSM_VERSION" | cut -d. -f1,2 | tr '.' '-')
+if [[ "$ARCH" == "s390x" ]]; then
+    export TAG="ibm-z-${OSSM_TAG_VERSION}"
 else
-    export TAG="ibm-p"
+    export TAG="ibm-p-${OSSM_TAG_VERSION}"
 fi
 
 extract_extra_test_args() {
